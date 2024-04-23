@@ -1,8 +1,15 @@
-function testVanishingPoint()
+function testVanishingPoint(varargin)
 close all
 
-change_err_order = false;
-use_vec3_err = false;
+if nargin < 1
+    use_vec3_err = false;
+elseif nargin == 1
+     use_vec3_err = varargin{1};
+end
+
+
+change_err_order = false;true;
+% use_vec3_err = true;
 
 colorStack = {'k';'m';'c'};
 colorStack = repmat(colorStack,100,1);
@@ -71,7 +78,7 @@ RotVec = [];
 uMat_stack = {};
 vMat_stack = {};
 Marker2CamL0 = Marker2CamL;
-for frame_id = 1 : 5
+for frame_id = 1 : 20
     Marker2CamL = [rodrigues(0.5 * (rand(3,1)-0.5)) 100 * (rand(3,1)-0.5);0 0 0 1] * Marker2CamL0;
     [pt2dL00, pt3dL] = TransformAndProject(marker1, K, Marker2CamL(1:3,1:3), Marker2CamL(1:3,4));
     
@@ -135,7 +142,7 @@ else
 end
 if add_noise && ~fix_rot
     for frame_id = 1 : frame_num
-        param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) = param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) + (0.01 * (rand(3,1)-0.5)); [-0.01 0.02 -0.03]';
+        param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) = param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) + (0.05 * (rand(3,1)-0.5)); [-0.01 0.02 -0.03]';
     end
 end
 % rotMat = rodrigues(param(end-2:end));
@@ -145,7 +152,7 @@ comb = nchoosek(1:size(uMat_stack{1,1},1), 2);
 
 
 loss = [];
-for iter = 1 : 30
+for iter = 1 : 10
     err = 0;
     
     intr = param(1:20);
@@ -257,6 +264,10 @@ for iter = 1 : 30
                         d_pt_in_plane_d_hori_bearing1 = [1-normalized_plane_hori_change_order(1)^2 -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(2) -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(3);
                             -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(2) 1-normalized_plane_hori_change_order(2)^2 -normalized_plane_hori_change_order(2)*normalized_plane_hori_change_order(3);
                             -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(3) -normalized_plane_hori_change_order(2)*normalized_plane_hori_change_order(3) 1-normalized_plane_hori_change_order(3)^2];
+                        if 0
+                            d_pt_in_plane_d_hori_bearing1_check = eye(3) - normalized_plane_hori_change_order * normalized_plane_hori_change_order';
+                        end
+                        
                         d_hori_err_d_bearing1 = (-eye(3) + d_err_d_pt_hori_change_order * d_pt_in_plane_d_hori_bearing1) * d_pt3d_d_param_hori1;
                         d_hori_err_d_X1_change_order = d_err_d_pt_hori_change_order * d_pt_d_plane_norm_hori_change_order * d_plane_norm_d_plane_hori_change_order * (-SkewSymMat(hori_bearing2));
                         d_hori_err_d_R_change_order = d_hori_err_d_X1_change_order * d_X1_d_R_chnage_order;

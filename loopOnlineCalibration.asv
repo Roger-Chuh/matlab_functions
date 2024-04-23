@@ -61,14 +61,14 @@ for i = 1 : size(dirInfo)
         [trans, trans_cat, rot, rot_cat] = testOnlineCalibration(folder, 0);
         
         if 1
-            figure(1),clf,subplot(2,4,1);hold on;plot(trans(:,1,1),'-r');plot(trans(:,2,1),'-g');plot(trans(:,3,1),'-b');title('cam0 trans diff (mm)');grid on;
-            subplot(2,4,2);hold on;plot(trans(:,1,2),'-r');plot(trans(:,2,2),'-g');plot(trans(:,3,2),'-b');title('cam1 trans diff (mm)');grid on;
-            subplot(2,4,3);hold on;plot(trans(:,1,3),'-r');plot(trans(:,2,3),'-g');plot(trans(:,3,3),'-b');title('cam2 trans diff (mm)');grid on;
-            subplot(2,4,4);hold on;plot(trans(:,1,4),'-r');plot(trans(:,2,4),'-g');plot(trans(:,3,4),'-b');title('cam3 trans diff (mm)');grid on;
-            subplot(2,4,5);hold on;plot(rot(:,1,1),'-r');plot(rot(:,2,1),'-g');plot(rot(:,3,1),'-b');title('cam0 rot diff (deg)');grid on;
-            subplot(2,4,6);hold on;plot(rot(:,1,2),'-r');plot(rot(:,2,2),'-g');plot(rot(:,3,2),'-b');title('cam1 rot diff (deg)');grid on;
-            subplot(2,4,7);hold on;plot(rot(:,1,3),'-r');plot(rot(:,2,3),'-g');plot(rot(:,3,3),'-b');title('cam2 rot diff (deg)');grid on;
-            subplot(2,4,8);hold on;plot(rot(:,1,4),'-r');plot(rot(:,2,4),'-g');plot(rot(:,3,4),'-b');title('cam3 rot diff (deg)');grid on;
+            figure(1),clf,subplot(2,4,1);hold on;plot(trans(:,1,1),'-r');plot(trans(:,2,1),'-g');plot(trans(:,3,1),'-b');title('cam0 trans');grid on;
+            subplot(2,4,2);hold on;plot(trans(:,1,2),'-r');plot(trans(:,2,2),'-g');plot(trans(:,3,2),'-b');title('cam1 trans');grid on;
+            subplot(2,4,3);hold on;plot(trans(:,1,3),'-r');plot(trans(:,2,3),'-g');plot(trans(:,3,3),'-b');title('cam2 trans');grid on;
+            subplot(2,4,4);hold on;plot(trans(:,1,4),'-r');plot(trans(:,2,4),'-g');plot(trans(:,3,4),'-b');title('cam3 trans');grid on;
+            subplot(2,4,5);hold on;plot(rot(:,1,1),'-r');plot(rot(:,2,1),'-g');plot(rot(:,3,1),'-b');title('cam0 rot');grid on;
+            subplot(2,4,6);hold on;plot(rot(:,1,2),'-r');plot(rot(:,2,2),'-g');plot(rot(:,3,2),'-b');title('cam1 rot');grid on;
+            subplot(2,4,7);hold on;plot(rot(:,1,3),'-r');plot(rot(:,2,3),'-g');plot(rot(:,3,3),'-b');title('cam2 rot');grid on;
+            subplot(2,4,8);hold on;plot(rot(:,1,4),'-r');plot(rot(:,2,4),'-g');plot(rot(:,3,4),'-b');title('cam3 rot');grid on;
         else
             figure(1),subplot(1,2,1),hold on; grid on;plot(trans_cat(:,1),'-r');plot(trans_cat(:,2),'-g');plot(trans_cat(:,3),'-b'); title('trans');
                       subplot(1,2,2),hold on; grid on;plot(rot_cat(:,1),'-r');plot(rot_cat(:,2),'-g');plot(rot_cat(:,3),'-b'); title('rot');

@@ -1,5 +1,5 @@
-function [Trans, trans_cat, Rot_diff, rot_cat] = testOnlineCalibration(inputDir, draw)
-% function [Trans_diff, trans_cat, Rot_diff, rot_cat] = testOnlineCalibration(inputDir, draw)
+% function [Trans, trans_cat, Rot_diff, rot_cat] = testOnlineCalibration(inputDir, draw)
+function [Trans_diff, trans_cat, Rot_diff, rot_cat] = testOnlineCalibration(inputDir, draw)
 % function [Trans, trans_cat, Rot, rot_cat] = testOnlineCalibration(inputDir, draw)
 
 
@@ -34,8 +34,8 @@ trans_cat = reshape(a,[],3);
 b = permute(Rot,[1 3 2]);
 rot_cat = reshape(b,[],3);
 
-Trans_diff = diff(Trans);
-Rot_diff = diff(Rot);
+Trans_diff = 1000.*diff(Trans);
+Rot_diff = rad2deg(diff(Rot));
 
 if draw
     if 1

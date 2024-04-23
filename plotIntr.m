@@ -15,7 +15,8 @@ paraInfo = dir(fullfile(inputDir,'1*'));
 % paraInfo = paraInfo([6 8]);
 
 % paraInfo = paraInfo([16 17]);
-paraInfo = paraInfo([9 18]);
+% paraInfo = paraInfo([9 18]);
+paraInfo = paraInfo([1 19]);
 
 AngCell = cell(length(paraInfo), 10);
 LineCell = cell(length(paraInfo), 10);
