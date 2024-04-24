@@ -35,12 +35,17 @@ T = TFT_from_P(Tc1w(1:3,:),Tc2w(1:3,:),Tc3w(1:3,:));
 
 for j = 1 : size(bearing1,1)
     err1(j, 1) = sum(sum(abs(SkewSymMat(bearing2(j,:)) * (bearing1(j, 1) * T(:,:,1) + bearing1(j, 2) * T(:,:,2) + bearing1(j, 3) * T(:,:,3)) * SkewSymMat(bearing3(j,:)))));
+    bearing = (bearing1(j, 1) * T(:,:,1) + bearing1(j, 2) * T(:,:,2) + bearing1(j, 3) * T(:,:,3)) * bearing2(j,:)';
+    bearing = bearing./norm(bearing);
+%     err2(j, 1) =  bearing3(j,:);
     [ point3 ] = pointTransfer( T, bearing1(j,:), bearing2(j,:) );
     point3 = point3./point3(3);
 end
 
 
 bearing33 = trifocalTransfer(Tc1w, Tc2w, Tc3w, eye(3), bearing1, bearing2, bearing3, use_bearing);
+
+diff = bearing33 - bearing3;
 
 end
 function T=TFT_from_P(P1,P2,P3)
@@ -91,6 +96,8 @@ pgc1 = Twc1(1:3,4);
 pgc2 = Twc2(1:3,4);
 pgc3 = Twc3(1:3,4);
 
+T12 = inv(Twc1) * Twc2;
+T13 = inv(Twc1) * Twc3;
 
 R12 = Rgc1'*Rgc2;
 t12 = Rgc1'*(pgc2-pgc1);
@@ -98,8 +105,8 @@ R13 = Rgc1'*Rgc3;
 t13 = Rgc1'*(pgc3-pgc1);
 
 PA = [ eye(3), zeros( 3, 1 ) ];
-PB = [ R12', -R12'*t12 ];
-PC = [ R13', -R13'*t13 ];
+PB = [ R12', -R12'*t12 ]; % T21
+PC = [ R13', -R13'*t13 ]; % T31
 
 F12 = R12'*SkewSymMat( t12 );
 F12_2 =  SkewSymMat( t12 )' * R12;
@@ -115,30 +122,65 @@ for m = 1:size( bearing1, 1 )
         uv2_normal =  bearing2(m,1:3)';%./norm(bearing2(m,1:3)');
     end
     epLine = F12*uv1_normal;
+    F21 = F12';
+    epLine2 = F21*uv1_normal;
     %     epLine = F12_2'*uv1_normal;
     epLine = epLine./norm(epLine);
     if ~use_bearing
         epLineNormal = [epLine(2); -epLine(1); -uv2_normal(1)*epLine(2)+uv2_normal(2)*epLine(1)];
+        epLineNormal2 = [epLine2(2); -epLine2(1); -uv2_normal(1)*epLine2(2)+uv2_normal(2)*epLine2(1)];
     else
         epLineNormal = cross(uv2_normal, epLine);
+        epLineNormal2 = cross(uv2_normal, epLine2);
     end
     if 1
         epLineNormal = epLineNormal./norm(epLineNormal(1:3));
     end
-    for k = 1:3
-        for i = 1:3
-            for j = 1:3
-                Tijk = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
-                z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
+    if 0
+        for k = 1:3
+            for i = 1:3
+                for j = 1:3
+                    Tijk = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
+                    z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
+                end
             end
         end
+    else
+        Tijk = zeros(3,3,3);
+        for k = 1:3
+            for i = 1:3
+                for j = 1:3
+                    Tijk(i,j,k) = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
+%                     z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
+                end
+            end
+        end
+        
+        for k = 1:3
+            for i = 1:3
+                for j = 1:3
+                    %                     Tijk = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
+                    z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk(i,j,k);
+                end
+            end
+        end
+        PAA = PB;
+        PBB = PC;
+        T_check = TFT_from_P([eye(3) zeros(3, 1)],PAA,PBB);
+        for aa = 1 : 3
+            T_check2(:,:,aa) = [PAA(:,aa) * PBB(:,4)' - PAA(:,4) * PBB(:,aa)'];
+        end
+        err0 = T_check2(:) - T_check(:);
+        err1 = SkewSymMat(bearing2(m,:)) * (bearing1(m, 1) * T_check(:,:,1) + bearing1(m, 2) * T_check(:,:,2) + bearing1(m, 3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
+        err2 = epLineNormal2' * (uv1_normal(1) * T_check(:,:,1) + uv1_normal(2) * T_check(:,:,2) + uv1_normal(3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
+        %         z(:,m) = (uv1_normal(1) * T(:,:,1) + uv1_normal(2) * T(:,:,2) + uv1_normal(3) * T(:,:,3)) * epLineNormal;
     end
-    
     z(:,m) = K*z(:,m);
     if ~use_bearing
         z(:,m) = z(:,m)/z(3,m);
     else
         z(:,m) = z(:,m)/norm(z(:,m));
+        SkewSymMat( z(:,m)) * bearing3(m,:)';
     end
 end
 
