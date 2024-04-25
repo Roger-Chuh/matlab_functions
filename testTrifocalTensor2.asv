@@ -107,8 +107,6 @@ t13 = Rgc1'*(pgc3-pgc1);
 R21 = R12';
 t21 = -R12'*t12;
 
-R31 = R13';
-t31 = -R13'*t13;
 
 PA = [ eye(3), zeros( 3, 1 ) ];
 PB = [ R12', -R12'*t12 ]; % T21
@@ -129,7 +127,7 @@ for m = 1:size( bearing1, 1 )
     end
     epLine = F12*uv1_normal;
     F21_check = F12';
-    F21 = SkewSymMat(t21) * R21;
+    F21 = SkewSymMat(t21)
     epLine2 = F21*uv1_normal;
     %     epLine = F12_2'*uv1_normal;
     epLine = epLine./norm(epLine);
@@ -191,10 +189,6 @@ for m = 1:size( bearing1, 1 )
         err3 = epLineNormal2' * T_sum * SkewSymMat(bearing3(m,:));
         err4 = T_sum' * epLineNormal2./norm(T_sum' * epLineNormal2) + bearing3(m,:)';
         err5 = T_sum_transpose * epLineNormal2./norm(T_sum_transpose * epLineNormal2) + bearing3(m,:)';
-        
-        predict = t31 * uv1_normal' * R21' * SkewSymMat(uv2_normal) * SkewSymMat(t21) * R21 * uv1_normal - R31 * uv1_normal * t21' * SkewSymMat(uv2_normal) * SkewSymMat(t21) * R21 * uv1_normal;
-        err6 = predict./norm(predict) + bearing3(m,:)';
-        err7 = uv1_normal' * SkewSymMat(uv2_normal) - (-(SkewSymMat(uv2_normal) * uv1_normal)');
         %         z(:,m) = (uv1_normal(1) * T(:,:,1) + uv1_normal(2) * T(:,:,2) + uv1_normal(3) * T(:,:,3)) * epLineNormal;
     end
     z(:,m) = K*z(:,m);

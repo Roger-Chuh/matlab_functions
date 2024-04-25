@@ -85,6 +85,7 @@ else
     % %    quiver3(poseVec11Robot(1:kl,1),poseVec11Robot(1:kl,2),poseVec11Robot(1:kl,3),poseVec11Robot(1:kl,10),poseVec11Robot(1:kl,11),poseVec11Robot(1:kl,12),0.1);
     
     legend('world origin','pnp x','pnp y', 'pnp z');
+    plot3(data(:,10), data(:,11), data(:,12),'-b');
     plot3(data(1,10), data(1,11), data(1,12),'sb','MarkerSize',15,'LineWidth',15);
 end
 
