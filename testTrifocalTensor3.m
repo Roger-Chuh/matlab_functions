@@ -28,7 +28,7 @@ pose_num = 20;
 
 T_wc_host = [reshape(poseMat(1, 1:9), 3, 3) poseMat(1, 10:12)';0 0 0 1];
 
-use_bearing = false;
+use_bearing = true;false;
 
 point_trace = [host_uv 1];
 point_trace_gt = [host_uv 1];
@@ -69,7 +69,11 @@ for id = 2 : pose_num
         
         bearing33_close = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, intrMat, point_trace(id-2,:), point_trace(id-1,:), point_trace(id,:), use_bearing);
         point_trans_err_close = norm(bearing33_close -  cur_cur');
-        bearing33_close_with_gt_pre = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, intrMat, point_trace_gt(id-2,:), point_trace_gt(id-1,:), point_trace(id,:), use_bearing);
+        if 0
+            bearing33_close_with_gt_pre = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, intrMat, point_trace_gt(id-2,:), point_trace_gt(id-1,:), point_trace(id,:), use_bearing);
+        else
+            bearing33_close_with_gt_pre = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, intrMat, point_trace_gt(id-2,:), point_trace(id-1,:), point_trace(id,:), use_bearing);
+        end
         point_trans_err_close_with_gt_pre = norm(bearing33_close_with_gt_pre -  cur_cur');
         bearing33_far = trifocalTransfer(T_cw_stack{1, 1}, T_cw_stack{2, 1}, T_cw_stack{id, 1}, intrMat, point_trace(1,:), point_trace(2,:), point_trace(id,:), use_bearing);
         point_trans_err_far = norm(bearing33_far -  cur_cur');
@@ -183,7 +187,11 @@ for m = 1:size( bearing1, 1 )
         epLineNormal2 = [epLine2(2); -epLine2(1); -uv2_normal(1)*epLine2(2)+uv2_normal(2)*epLine2(1)];
     else
         epLineNormal = cross(uv2_normal, epLine);
-        epLineNormal2 = cross(uv2_normal, epLine2);
+        if 1
+            epLineNormal2 = cross(uv2_normal, epLine2);
+        else
+            epLineNormal2 = epLine2;
+        end
     end
     if 1
         epLineNormal = epLineNormal./norm(epLineNormal(1:3));

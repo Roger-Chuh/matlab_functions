@@ -37,7 +37,7 @@ for j = 1 : size(bearing1,1)
     err1(j, 1) = sum(sum(abs(SkewSymMat(bearing2(j,:)) * (bearing1(j, 1) * T(:,:,1) + bearing1(j, 2) * T(:,:,2) + bearing1(j, 3) * T(:,:,3)) * SkewSymMat(bearing3(j,:)))));
     bearing = (bearing1(j, 1) * T(:,:,1) + bearing1(j, 2) * T(:,:,2) + bearing1(j, 3) * T(:,:,3)) * bearing2(j,:)';
     bearing = bearing./norm(bearing);
-%     err2(j, 1) =  bearing3(j,:);
+    %     err2(j, 1) =  bearing3(j,:);
     [ point3 ] = pointTransfer( T, bearing1(j,:), bearing2(j,:) );
     point3 = point3./point3(3);
 end
@@ -138,7 +138,11 @@ for m = 1:size( bearing1, 1 )
         epLineNormal2 = [epLine2(2); -epLine2(1); -uv2_normal(1)*epLine2(2)+uv2_normal(2)*epLine2(1)];
     else
         epLineNormal = cross(uv2_normal, epLine);
-        epLineNormal2 = cross(uv2_normal, epLine2);
+        if 1
+            epLineNormal2 = cross(uv2_normal, epLine2);
+        else
+            epLineNormal2 = epLine2;
+        end
     end
     if 1
         epLineNormal = epLineNormal./norm(epLineNormal(1:3));
@@ -158,7 +162,7 @@ for m = 1:size( bearing1, 1 )
             for i = 1:3
                 for j = 1:3
                     Tijk(i,j,k) = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
-%                     z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
+                    %                     z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
                 end
             end
         end
@@ -176,7 +180,7 @@ for m = 1:size( bearing1, 1 )
         T_check = TFT_from_P([eye(3) zeros(3, 1)],T21,T31);
         for aa = 1 : 3
             T_check2(:,:,aa) = [T21(:,aa) * T31(:,4)' - T21(:,4) * T31(:,aa)'];
-%             T_check_21(:,:,aa) = T21(:,aa) * T31(:,4)';
+            %             T_check_21(:,:,aa) = T21(:,aa) * T31(:,4)';
         end
         err0 = T_check2(:) - T_check(:);
         err1 = SkewSymMat(bearing2(m,:)) * (bearing1(m, 1) * T_check(:,:,1) + bearing1(m, 2) * T_check(:,:,2) + bearing1(m, 3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
@@ -186,8 +190,8 @@ for m = 1:size( bearing1, 1 )
         T_sum_transpose = T31(1:3,4) * (T21(1:3,1:3) * uv1_normal)' - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
         T_sum_transpose2 = T31(1:3,4) * (uv1_normal' * T21(1:3,1:3)') - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
         T_sum_transpose3 = T31(1:3,4) * uv1_normal' * T21(1:3,1:3)' - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
-       
-%         T_sum2 = T21(1:3,1:3) * ()
+        
+        %         T_sum2 = T21(1:3,1:3) * ()
         err3 = epLineNormal2' * T_sum * SkewSymMat(bearing3(m,:));
         err4 = T_sum' * epLineNormal2./norm(T_sum' * epLineNormal2) + bearing3(m,:)';
         err5 = T_sum_transpose * epLineNormal2./norm(T_sum_transpose * epLineNormal2) + bearing3(m,:)';
