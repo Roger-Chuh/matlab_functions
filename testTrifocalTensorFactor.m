@@ -52,23 +52,114 @@ for id = 1 : pose_num
 end
 Twc_stack_gt = Twc_stack;
 
-for id = 1 : pose_num
-    T_wc_cur = Twc_stack{id, 1};
-    T_cw_stack{id, 1} = inv(T_wc_cur);
-    if id >= 3
-        target_braring_predict = zeros(size(target_braring, 1), 3);
-        for pid = 1 : size(target_braring, 1)
-            [err, target_braring_predict(pid,:)] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof);
+Twc_stack_noise = Twc_stack_gt;
+fix_pose_num = 2;
+for i = 1 : pose_num
+    if i > fix_pose_num
+        if is_5dof
+            Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) zeros(3, 1);0 0 0 1];
+        else
+            Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) 0.01 * (rand(3,1)-0.5);0 0 0 1];
         end
     end
 end
 
+iter_max = 6;
+for iter = 1 : iter_max
+    if is_5dof
+        pose_size = 5;
+    else
+        pose_size = 6;
+    end
+    H = zeros(pose_size * (pose_num), pose_size * (pose_num));
+    b = zeros(pose_size * (pose_num), 1);
+    error = 0;
+    for id = 1 : pose_num
+        T_wc_cur = Twc_stack_noise{id, 1};
+        T_cw_stack{id, 1} = inv(T_wc_cur);
+        if id >= 3
+            target_braring_predict = zeros(size(target_braring, 1), 3);
+            for pid = 1 : size(target_braring, 1)
+                [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof);
+                pose_1_start_idx = pose_size * ((id-2)-1) + 1;
+                pose_2_start_idx = pose_size * ((id-1)-1) + 1;
+                pose_3_start_idx = pose_size * ((id)-1) + 1;
+                if (id-2 <= fix_pose_num)
+                    d_err_d_Twc1 = zeros(size(d_err_d_Twc1));
+                end
+                if (id-1 <= fix_pose_num)
+                    d_err_d_Twc2 = zeros(size(d_err_d_Twc2));
+                end
+                if (id <= fix_pose_num)
+                    d_err_d_Twc3 = zeros(size(d_err_d_Twc3));
+                end
+                H = FillMatrix(H, pose_size, pose_size, pose_1_start_idx, pose_1_start_idx, d_err_d_Twc1' * d_err_d_Twc1);
+                H = FillMatrix(H, pose_size, pose_size, pose_2_start_idx, pose_2_start_idx, d_err_d_Twc2' * d_err_d_Twc2);
+                H = FillMatrix(H, pose_size, pose_size, pose_3_start_idx, pose_3_start_idx, d_err_d_Twc3' * d_err_d_Twc3);
+                
+                H = FillMatrix(H, pose_size, pose_size, pose_2_start_idx, pose_1_start_idx, d_err_d_Twc2' * d_err_d_Twc1);
+                H = FillMatrix(H, pose_size, pose_size, pose_3_start_idx, pose_1_start_idx, d_err_d_Twc3' * d_err_d_Twc1);
+                H = FillMatrix(H, pose_size, pose_size, pose_3_start_idx, pose_2_start_idx, d_err_d_Twc3' * d_err_d_Twc2);
+                
+                H = FillMatrix(H, pose_size, pose_size, pose_1_start_idx, pose_2_start_idx, d_err_d_Twc1' * d_err_d_Twc2);
+                H = FillMatrix(H, pose_size, pose_size, pose_1_start_idx, pose_3_start_idx, d_err_d_Twc1' * d_err_d_Twc3);
+                H = FillMatrix(H, pose_size, pose_size, pose_2_start_idx, pose_3_start_idx, d_err_d_Twc2' * d_err_d_Twc3);
+                
+                b = FillMatrix(b, pose_size, 1, pose_1_start_idx, 1, -d_err_d_Twc1' * err);
+                b = FillMatrix(b, pose_size, 1, pose_2_start_idx, 1, -d_err_d_Twc2' * err);
+                b = FillMatrix(b, pose_size, 1, pose_3_start_idx, 1, -d_err_d_Twc3' * err);
+                
+                error = error + err' * err * 235 * 235;
+                
+            end
+        end
+    end
+    dx = inv(H(fix_pose_num * pose_size + 1:end, fix_pose_num * pose_size + 1:end)) * b(fix_pose_num * pose_size + 1:end);
+    dxMat = reshape(dx, pose_size, []);
+    for k = 1 : size(dxMat, 2)
+        if is_5dof
+            dR = rodrigues(dxMat(1:3,k));
+            Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) = Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) * dR;
+            Ag = ProduceOtherOthogonalBasis(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+            rot_vec = Ag * dxMat(4:5,k);
+            trans_new = rodrigues(rot_vec) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+            Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+        else
+            dT = Exp(dxMat(1:3,k), dxMat(4:6, k));
+            Twc_stack_noise{k + fix_pose_num, 1} = dT * Twc_stack_noise{k + fix_pose_num, 1};
+        end
+    end
+    fprintf(sprintf('iter: %d, err: %f\n', iter, error));
+end
 
 % info = [xyz_err err_close_with_gt_pre];
-% 
+%
 % figure,imshow(zeros(480, 640)); hold on;plot(point_trace(:,1), point_trace(:,2),'.g');plot(point_trace(1,1), point_trace(1,2),'or')
 
 
+end
+function Mat2 = GrowMat(Mat1, rows, cols, start_row, start_col)
+if size(Mat1,1) < start_row + rows -1
+    pad_row = start_row + rows -1 - size(Mat1,1);
+    Mat1 = [Mat1; zeros(pad_row, size(Mat1,2))];
+%     Mat1 = [Mat1 zeros(size(Mat1,1), pad_row)];
+end
+
+if size(Mat1,2) < start_col + cols -1
+    pad_col = start_col + cols -1 - size(Mat1,2);
+    Mat1 = [Mat1 zeros(size(Mat1,1), pad_col)];
+%     Mat1 = [Mat1; zeros(pad_col, size(Mat1,2))];
+end
+Mat2 = Mat1;
+
+end
+function Mat2 = FillMatrix(Mat1, rows, cols, start_row, start_col, data)
+
+
+% Mat1 = GrowMat(Mat1, rows, cols, start_row, start_col);
+Mat1(start_row:start_row+rows-1, start_col:start_col+cols-1) = Mat1(start_row:start_row+rows-1, start_col:start_col+cols-1) + data;
+
+Mat2 = Mat1;
 end
 function dist_to_line = EpipolarTransfer(Tc1w, Tc2w, K, focal, bearing1, bearing2, use_bearing)
 Twc1 = inv(Tc1w);
@@ -92,8 +183,8 @@ invK = inv(K);
 
 m = 1;
 if ~use_bearing
-%     uv1_normal = invK*[ bearing1(m,1:2)'; 1 ];
-%     uv2_normal = invK*[ bearing2(m,1:2)'; 1 ];
+    %     uv1_normal = invK*[ bearing1(m,1:2)'; 1 ];
+    %     uv2_normal = invK*[ bearing2(m,1:2)'; 1 ];
     uv1_normal = [ bearing1(m,1:2)'; 1 ];
     uv2_normal = [ bearing2(m,1:2)'; 1 ];
 else
@@ -108,7 +199,38 @@ epLine2 = epLine2./norm(epLine2(1:2));
 dist_to_line = dot(epLine2, uv2_normal);
 
 end
-function [err, bearing33, d_err_d_Rwc1, d_err_d_Rwc2, d_err_d_Rwc3, d_err_d_twc1, d_err_d_twc2, d_err_d_twc3] = trifocalTransfer(Tc1w, Tc2w, Tc3w, K, bearing1, bearing2, bearing3, use_bearing, is_5dof)
+function result =  Exp(w, v)
+
+
+omega = w;
+theta_sq = sum(omega.^2);
+
+if (theta_sq < 1e-10)
+    theta = 0;
+else
+    theta = sqrt(theta_sq);
+end
+so3 = rodrigues(omega);
+Omega = SkewSymMat(omega);
+Omega_sq = Omega * Omega;
+V = zeros(3, 3);
+
+if (theta < 1e-5)
+    V = so3;
+    
+else
+    theta_sq = theta * theta;
+    V = (eye(3) + ((1) - cos(theta)) / (theta_sq)*Omega + (theta - sin(theta)) / (theta_sq * theta) * Omega_sq);
+end
+
+tran = V * v;
+result = eye(4);
+
+result(1:3,1:3) = so3;
+result(1:3,4) = tran;
+
+end
+function [err, bearing33, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(Tc1w, Tc2w, Tc3w, K, bearing1, bearing2, bearing3, use_bearing, is_5dof)
 
 d_err_d_Rwc1 =[];
 d_err_d_Rwc2 = [];
@@ -207,7 +329,7 @@ else
         + Rbc3' * (tbc1 - tbc3) * X1' * Rbc1' * SkewSymMat(SkewSymMat(Rbc2 * X2) * (-1) * Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2)) ...
         +   (-1) * Rbc3' * SkewSymMat(tbc1 * X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * (-1) * Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2)) ...
         ...
-                  -Rbc3' * Rbc1 * X1 * (tbc1' - tbc2') * SkewSymMat(Rbc2 * X2) * (-1) * (Rbc1 * SkewSymMat(X1) * Rbc1' * (-SkewSymMat(tbc1))    +   Rbc1 * SkewSymMat(X1) * Rbc1' * SkewSymMat(tbc1 - tbc2)   -  SkewSymMat(Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2)) );
+        -Rbc3' * Rbc1 * X1 * (tbc1' - tbc2') * SkewSymMat(Rbc2 * X2) * (-1) * (Rbc1 * SkewSymMat(X1) * Rbc1' * (-SkewSymMat(tbc1))    +   Rbc1 * SkewSymMat(X1) * Rbc1' * SkewSymMat(tbc1 - tbc2)   -  SkewSymMat(Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2)) );
     v1 = -Rbc3' * Rbc1 * X1;
     v3 = SkewSymMat(tbc1) * SkewSymMat(Rbc2 * X2) * (-1) *  Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2);
     jac = compute_transpose_vec_jac(v1, v3);
@@ -245,8 +367,8 @@ else
     d_err_d_twc2 = d_err_d_twc2 + jac;
     %=====================================
     d_err_d_Rwc3 = Rbc3' * SkewSymMat(tbc3 * X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1) ...
-         + (-1) *  Rbc3' * (-1) * SkewSymMat((tbc1 - tbc3) * X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1) ...
-          + Rbc3' * (-1) * SkewSymMat(Rbc1 * X1 * (tbc1' - tbc2') * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1);
+        + (-1) *  Rbc3' * (-1) * SkewSymMat((tbc1 - tbc3) * X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1) ...
+        + Rbc3' * (-1) * SkewSymMat(Rbc1 * X1 * (tbc1' - tbc2') * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1);
     %=====================================
     d_err_d_twc3 = -Rbc3' * (X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1);
 end
@@ -303,7 +425,7 @@ for m = 1:size( bearing1, 1 )
             for i = 1:3
                 for j = 1:3
                     Tijk(i,j,k) = PB(j,i)*PC(k,4)-PB(j,4)*PC(k,i);
-%                     z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
+                    %                     z(k,m) = z(k,m)+uv1_normal(i)*epLineNormal(j)*Tijk;
                 end
             end
         end
@@ -321,7 +443,7 @@ for m = 1:size( bearing1, 1 )
         T_check = TFT_from_P([eye(3) zeros(3, 1)],T21,T31);
         for aa = 1 : 3
             T_check2(:,:,aa) = [T21(:,aa) * T31(:,4)' - T21(:,4) * T31(:,aa)'];
-%             T_check_21(:,:,aa) = T21(:,aa) * T31(:,4)';
+            %             T_check_21(:,:,aa) = T21(:,aa) * T31(:,4)';
         end
         err0 = T_check2(:) - T_check(:);
         err1 = SkewSymMat(bearing2(m,:)) * (bearing1(m, 1) * T_check(:,:,1) + bearing1(m, 2) * T_check(:,:,2) + bearing1(m, 3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
@@ -331,8 +453,8 @@ for m = 1:size( bearing1, 1 )
         T_sum_transpose = T31(1:3,4) * (T21(1:3,1:3) * uv1_normal)' - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
         T_sum_transpose2 = T31(1:3,4) * (uv1_normal' * T21(1:3,1:3)') - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
         T_sum_transpose3 = T31(1:3,4) * uv1_normal' * T21(1:3,1:3)' - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';
-       
-%         T_sum2 = T21(1:3,1:3) * ()
+        
+        %         T_sum2 = T21(1:3,1:3) * ()
         err3 = epLineNormal2' * T_sum * SkewSymMat(bearing3(m,:));
         err4 = T_sum' * epLineNormal2./norm(T_sum' * epLineNormal2) + bearing3(m,:)';
         err5 = T_sum_transpose * epLineNormal2./norm(T_sum_transpose * epLineNormal2) + bearing3(m,:)';
@@ -369,6 +491,10 @@ d_err_d_Rwc3 = d_bearing_d_pt * d_err_d_Rwc3;
 d_err_d_twc1 = d_bearing_d_pt * d_err_d_twc1;
 d_err_d_twc2 = d_bearing_d_pt * d_err_d_twc2;
 d_err_d_twc3 = d_bearing_d_pt * d_err_d_twc3;
+
+d_err_d_Twc1 = [d_err_d_Rwc1 d_err_d_twc1];
+d_err_d_Twc2 = [d_err_d_Rwc2 d_err_d_twc2];
+d_err_d_Twc3 = [d_err_d_Rwc3 d_err_d_twc3];
 
 end
 function T=TFT_from_P(P1,P2,P3)
