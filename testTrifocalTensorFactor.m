@@ -26,12 +26,12 @@ intrMat = [500 0 320; 0 500 240; 0 0 1];
 host_uv = [100 10; 110 15; 95 8; 300 30; 350 25; 200 8];
 host_rho = [0.5; 0.51; 0.52; 0.49; 0.48; 0.47];
 
-pose_num = 7;
+pose_num = 20;
 
 T_wc_host = [reshape(poseMat(1, 1:9), 3, 3) poseMat(1, 10:12)';0 0 0 1];
 
 use_bearing = true;false;
-is_5dof = false;true;
+is_5dof = false; true;
 point_trace = pextend(host_uv')';
 % point_trace_gt = [host_uv 1];
 
@@ -64,7 +64,7 @@ for i = 1 : pose_num
     end
 end
 
-iter_max = 6;
+iter_max = 20;
 for iter = 1 : iter_max
     if is_5dof
         pose_size = 5;
@@ -77,7 +77,7 @@ for iter = 1 : iter_max
     for id = 1 : pose_num
         T_wc_cur = Twc_stack_noise{id, 1};
         T_cw_stack{id, 1} = inv(T_wc_cur);
-        if id >= 3
+        if id >= fix_pose_num + 1 % 3
             target_braring_predict = zeros(size(target_braring, 1), 3);
             for pid = 1 : size(target_braring, 1)
                 [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof);

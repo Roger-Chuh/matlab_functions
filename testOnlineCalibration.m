@@ -34,19 +34,48 @@ trans_cat = reshape(a,[],3);
 b = permute(Rot,[1 3 2]);
 rot_cat = reshape(b,[],3);
 
+
+
+for j = 1 : size(Trans, 1)
+    base_trans = squeeze(Trans(1,:,:));
+    cur_trans = squeeze(Trans(j,:,:));
+   
+   for k = 1 : size(base_trans,2)
+       ang(k,j) = real(CalcDegree(base_trans(:,k)', cur_trans(:,k)'));
+       
+   end
+    
+end
+
 Trans_diff = 1000.*diff(Trans);
 Rot_diff = rad2deg(diff(Rot));
 
 if draw
     if 1
-        figure,subplot(2,4,1);plot(Trans(:,:,1));title('cam0 trans');grid on;
-        subplot(2,4,2);plot(Trans(:,:,2));title('cam1 trans');grid on;
-        subplot(2,4,3);plot(Trans(:,:,3));title('cam2 trans');grid on;
-        subplot(2,4,4);plot(Trans(:,:,4));title('cam3 trans');grid on;
-        subplot(2,4,5);plot(Rot(:,:,1));title('cam0 rot');grid on;
-        subplot(2,4,6);plot(Rot(:,:,2));title('cam1 rot');grid on;
-        subplot(2,4,7);plot(Rot(:,:,3));title('cam2 rot');grid on;
-        subplot(2,4,8);plot(Rot(:,:,4));title('cam3 rot');grid on;
+        if 0
+            figure,subplot(2,4,1);plot(Trans(:,:,1));title('cam0 trans');grid on;
+            subplot(2,4,2);plot(Trans(:,:,2));title('cam1 trans');grid on;
+            subplot(2,4,3);plot(Trans(:,:,3));title('cam2 trans');grid on;
+            subplot(2,4,4);plot(Trans(:,:,4));title('cam3 trans');grid on;
+            subplot(2,4,5);plot(Rot(:,:,1));title('cam0 rot');grid on;
+            subplot(2,4,6);plot(Rot(:,:,2));title('cam1 rot');grid on;
+            subplot(2,4,7);plot(Rot(:,:,3));title('cam2 rot');grid on;
+            subplot(2,4,8);plot(Rot(:,:,4));title('cam3 rot');grid on;
+        else
+            figure(1),clf,
+            subplot(3,4,1);hold on;plot(ang(1,:),'-r');title('cam0 trans dir angle diff(deg)');grid on;
+            subplot(3,4,2);hold on;plot(ang(2,:),'-r');title('cam1 trans dir angle diff(deg)');grid on;
+            subplot(3,4,3);hold on;plot(ang(3,:),'-r');title('cam2 trans dir angle diff(deg)');grid on;
+            subplot(3,4,4);hold on;plot(ang(4,:),'-r');title('cam3 trans dir angle diff(deg)');grid on;
+            subplot(3,4,5);hold on;plot(Trans_diff(:,1,1),'-r');plot(Trans_diff(:,2,1),'-g');plot(Trans_diff(:,3,1),'-b');title('cam0 trans(mm)');grid on;
+            subplot(3,4,6);hold on;plot(Trans_diff(:,1,2),'-r');plot(Trans_diff(:,2,2),'-g');plot(Trans_diff(:,3,2),'-b');title('cam1 trans(mm)');grid on;
+            subplot(3,4,7);hold on;plot(Trans_diff(:,1,3),'-r');plot(Trans_diff(:,2,3),'-g');plot(Trans_diff(:,3,3),'-b');title('cam2 trans(mm)');grid on;
+            subplot(3,4,8);hold on;plot(Trans_diff(:,1,4),'-r');plot(Trans_diff(:,2,4),'-g');plot(Trans_diff(:,3,4),'-b');title('cam3 trans(mm)');grid on;
+            subplot(3,4,9);hold on;plot(Rot_diff(:,1,1),'-r');plot(Rot_diff(:,2,1),'-g');plot(Rot_diff(:,3,1),'-b');title('cam0 rot(deg)');grid on;
+            subplot(3,4,10);hold on;plot(Rot_diff(:,1,2),'-r');plot(Rot_diff(:,2,2),'-g');plot(Rot_diff(:,3,2),'-b');title('cam1 rot(deg)');grid on;
+            subplot(3,4,11);hold on;plot(Rot_diff(:,1,3),'-r');plot(Rot_diff(:,2,3),'-g');plot(Rot_diff(:,3,3),'-b');title('cam2 rot(deg)');grid on;
+            subplot(3,4,12);hold on;plot(Rot_diff(:,1,4),'-r');plot(Rot_diff(:,2,4),'-g');plot(Rot_diff(:,3,4),'-b');title('cam3 rot(deg)');grid on;
+        end
     else
         figure;subplot(1,2,1);plot(trans_cat);grid on;  title('trans');
                subplot(1,2,2);plot(rot_cat);grid on;  title('rot');
