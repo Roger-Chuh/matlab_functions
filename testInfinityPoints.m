@@ -17,7 +17,7 @@ bearing = (inv(K) * pextend(pix'))';
 
 
 figure,imshow(ones(480, 640));hold on;
-depth_near = 100;-20;100;
+depth_near = 1000;100;-20;100;
 use_idp = true;
 
 if ~use_idp
@@ -27,7 +27,7 @@ if ~use_idp
 else
     
     idepth_near = 1 / depth_near;
-    step1 = 0.001;
+    step1 = 0.0001;
     step2 = -step1;
     list = step1 : step1 : 10000;
     list = list(1:17);

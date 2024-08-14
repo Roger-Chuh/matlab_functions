@@ -1,0 +1,92 @@
+function testClosedFormPtOnLine()
+clc;
+p1 = [100 200 300]';
+p2 = [103 180 150]';
+p1 = 1000 * rand(3,1);
+p2 = 1000 * rand(3,1);
+p1 = sign(p1(3)) * p1;
+p2 = sign(p2(3)) * p2;
+
+dir = (p2 - p1)./norm(p2 - p1);
+
+px = p1 + 10 * dir;
+dir_x = px./norm(px);
+
+
+ml = cross(p1, dir);
+
+Lline = [ml;dir];
+Lx = [[0;0;0];dir_x];
+
+dist = ml - cross(px, dir);
+
+
+
+Al = [SkewSymMat(dir); SkewSymMat(dir_x)];
+if 0
+    Alt = [SkewSymMat(-dir) SkewSymMat(-dir_x)];
+elseif 1
+    Alt = -[SkewSymMat(dir) SkewSymMat(dir_x)];
+else
+end
+bl = -[ml; zeros(3,1)];
+
+px_check = inv(Al' * Al) * Al' * bl;
+temp = inv(Al' * Al) * Al';
+temp(:,1:3) * bl(1:3);
+tempa = Al(1:3,:);
+tempat = Alt(:,1:3);
+temp2 = inv(Al' * Al) * tempa'* bl(1:3);
+if 0
+    temp2t = inv(Alt * Al) * tempat* bl(1:3);
+elseif 0
+    temp2t = -inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * tempat* bl(1:3);
+elseif 0
+    temp2t = -inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * (-SkewSymMat(dir))* (-ml);
+elseif 0
+    temp2t = -inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * (SkewSymMat(dir))* (ml);
+elseif 0
+    temp2t = inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * (SkewSymMat(dir))* (SkewSymMat(dir) * p1);
+else
+    temp2t = inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * (SkewSymMat(dir)* SkewSymMat(dir)) * p1;
+end
+
+
+[px - px_check px - temp2 px - temp2t]
+
+
+Al * inv(Al' * Al) * Al' * bl - bl;
+
+
+
+
+
+syms x y z a1 a2 a3 p1 p2 p3
+expression = inv((SkewSymMat([x y z]) * SkewSymMat([x y z]) + SkewSymMat([a1 a2 a3]) * SkewSymMat([a1 a2 a3]))) * (SkewSymMat([x y z])* SkewSymMat([x y z])) * [p1;p2;p3]
+simplifiedExpr = simplify(expression)
+
+% [r, how] = simple(simplifiedExpr)
+
+
+% 如果你想要对矩阵中的每个元素分别求导，并创建一个新的导数矩阵
+% 注意：这需要对每个元素单独操作，并重新构建矩阵
+dAdx(:,1) = simplifiedExpr; % 创建一个与A相同大小的零矩阵来存储导数
+dAdx(:,2) = simplifiedExpr;
+dAdx(:,3) = simplifiedExpr;
+for i = 1:size(simplifiedExpr, 1)
+    dAdx(i, 1) = diff(simplifiedExpr(i, 1), x); % 对每个元素关于x求导
+    dAdx(i, 2) = diff(simplifiedExpr(i, 1), y); % 对每个元素关于y求导
+    dAdx(i, 3) = diff(simplifiedExpr(i, 1), z); % 对每个元素关于z求导
+end
+
+%把p1当成常数，对dir求导
+
+%把dir当成常数，对p1求导
+d_simplifiedExpr_d_p1 = inv((SkewSymMat(dir) * SkewSymMat(dir) + SkewSymMat(dir_x) * SkewSymMat(dir_x))) * (SkewSymMat(dir)* SkewSymMat(dir));
+
+% 显示导数矩阵
+disp('矩阵A关于x的导数矩阵:');
+disp(dAdx);
+
+
+end

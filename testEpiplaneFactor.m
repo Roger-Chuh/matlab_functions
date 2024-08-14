@@ -4,13 +4,13 @@ global use_dist_error use_5dof pose_size opt_3dof add_noise right_perturbation i
 add_noise = 1;
 opt_3dof = 0;
 use_dist_error = 0;
-use_5dof = 1;
+use_5dof = 0;1;
 fix_rot = 0;
-right_perturbation = 1;
+right_perturbation = 0;1;
 use_reproj_factor = 1;
-use_epiplane_factor = 0;
+use_epiplane_factor = 1;
 pose_num = 7;
-use_xyz = 1;
+use_xyz = 0;1;
 
 if ~use_5dof
     %     right_perturbation = 0;

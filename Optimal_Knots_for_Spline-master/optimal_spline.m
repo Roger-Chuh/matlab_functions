@@ -21,7 +21,8 @@ else
     plot(raw_data(:,1), raw_data(:,3) + delta);hold on;plot(raw_data1(:,1), raw_data1(:,3) + delta,'or');
     plot(raw_data(:,1), raw_data(:,4) + 2 * delta);hold on;plot(raw_data1(:,1), raw_data1(:,4) + 2 * delta,'or');
     grid on;
-    figure,pcshow(raw_data(:,2:4),[1 0 0]);hold on;pcshow(raw_data(:,5:7),[0 0 1]);
+    figure,subplot(1,2,1);pcshow(raw_data(:,2:4),[1 0 0]);hold on;pcshow(raw_data(:,5:7),[0 0 1]);title('acc');
+    subplot(1,2,2);pcshow(gyro(:,2:4),[1 0 0]);hold on;pcshow(gyro(:,5:7),[0 0 1]);title('gyro');
     
     return
     

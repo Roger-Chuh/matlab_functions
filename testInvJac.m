@@ -17,8 +17,8 @@ Param = [1214.025993758243,
     -0.0002193412417918993,
     0.0001936268547567258,
     -0.0002042473404798113,
-    -10,
-    10,
+    -0.01,
+    0.01,
     0,
     0,
     0];
@@ -43,8 +43,8 @@ Param = [242.0503165415735,
     -0.0002963449586486949,
     0.00901,
     -0.0009,
-    -10,
-    10,
+    -0.01,
+    0.01,
     0,
     0,
     0];
@@ -90,8 +90,8 @@ Param = [1384.53
     -0.017373
     -0.0288691
     0.0608937,
-    -10,
-    10,
+    -0.01,
+    0.01,
     0,
     0,
     0];
@@ -175,17 +175,21 @@ rz = Param(25);
 
 
 X = [-10.1234 -20.5678 15];
+X(3) = -X(3);
 X_ = X;
+X_2 = X;
 X = [X(1)/X(3) X(2)/X(3) 1];
 X = X./norm(X);
 
 [pt2d, d_uv_d_pt3d, d_uv_d_param] = project(X_(1),X_(2), X_(3),fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20, alpha0, beta0, rx0, ry0, rz0);
+[pt2d22, d_uv_d_pt3d22, d_uv_d_param22] = project(-X_(1),-X_(2), -X_(3),fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20, alpha0, beta0, rx0, ry0, rz0);
 
 [pt3d, d_pt3d_d_uv, d_pt3d_d_param] = unproject(pt2d(1),pt2d(2), fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20, alpha0, beta0, rx0, ry0, rz0);
 
 [pt2d123, ~, ~] = project(pt3d(1),pt3d(2), pt3d(3),fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20, alpha0, beta0, rx0, ry0, rz0);
 
 err_ = X - pt3d
+err_2 = X_2./norm(X_2) - pt3d
 
 disturbance = [5.*(rand(4,1)-0.5);
     0.1.*(rand(6,1)-0.5);
@@ -197,7 +201,7 @@ disturbance_pt3d = 0.01.*(rand(3,1)-0.5);
 disturbance_pt2d = 1000.*(rand(2,1)-0.5);
 disturbance_pt2d = 10.*(rand(2,1)-0.5);
 
-disturbance = [-2.48512711138509;-2.12291452309554;2.28265094210089;2.853457473397897;0.0166720512777738;-0.0339520395422974;0.0264749552794402;0.0158897114300060;0.0390732504151609;0.0396184685167673;-0.0192979630493664;0.0405478614969866;0.0146714295416348;0.0356074008212624;0.0196533331327743;-0.00643988179087626;0.0231564768498888;0.0176666421228288;0.0207302735927681;0.0338140440971284; 1; 1; 0;0;0];
+disturbance = [-2.48512711138509;-2.12291452309554;2.28265094210089;2.853457473397897;0.0166720512777738;-0.0339520395422974;0.0264749552794402;0.0158897114300060;0.0390732504151609;0.0396184685167673;-0.0192979630493664;0.0405478614969866;0.0146714295416348;0.0356074008212624;0.0196533331327743;-0.00643988179087626;0.0231564768498888;0.0176666421228288;0.0207302735927681;0.0338140440971284; 0.01; 0.01; 0.001;-0.002;0.003];
 disturbance = disturbance./100;
 disturbance_pt3d = 20.0.*[-0.00426187183200918;-0.000800120347325337;-0.00132981489423306];
 disturbance_pt2d = [-3.77737164288323;3.75650983611374]./10;
@@ -331,7 +335,7 @@ end
 
 end
 
-function [pt2d, d_uv_d_pt3d, d_uv_d_param] = project(X,Y,Z, fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz)
+function [pt2d, d_uv_d_pt3d, d_uv_d_param] = project(X0,Y0,Z0, fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz)
 global Param
 d_uv_d_pt3d = []; d_uv_d_param = [];
 
@@ -339,8 +343,22 @@ d_uv_d_pt3d = []; d_uv_d_param = [];
 % Y = pt3d(:,2);
 % Z = pt3d(:,3);
 
+alpha_true = alpha;
+alpha = 1 / (1 + exp(-alpha));
+beta = exp(beta);
 
 
+rot_vec = [rx, ry, rz];
+rotMat = rodrigues(rot_vec);
+z_old = Z0;
+d = sqrt(beta * (X0 * X0 + Y0 * Y0) + z_old * z_old);
+d_inv = 1 / d;
+z_new = alpha * d + (1 - alpha) * z_old;
+p_3d1 = [X0 Y0, z_new];
+p_3d = rotMat * p_3d1';
+X = p_3d(1);
+Y = p_3d(2);
+Z = p_3d(3);
 
 param = [fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz];
 % fx = param(1);
@@ -444,7 +462,21 @@ d_vt_d_vd = tt5/(tt7*u_d + tt8*v_d + tt9) - (tt4*u_d+tt5*v_d)*tt8/(tt7*u_d + tt8
 d_uvTilted_d_uvDistorted = [d_ut_d_ud d_ut_d_vd; d_vt_d_ud d_vt_d_vd];
 d_uv_d_uvTilted = [fx 0;0 fy];
 
-d_uv_d_pt3d = d_uv_d_uvTilted * d_uvTilted_d_uvDistorted * duvDistorted_dxryr * d_xr_yr_d_ab * d_ab_d_xyz;
+
+d_p3d0_d_p3d1 = rotMat;
+d_p3d1_d_p3d2 = eye(3);
+d_p3d1_d_p3d2(3, 1) = alpha * d_inv * beta * X0;
+d_p3d1_d_p3d2(3, 2) = alpha * d_inv * beta * Y0;
+d_p3d1_d_p3d2(3, 3) = alpha * d_inv * beta * z_old + 1 - alpha;
+
+
+
+
+d_img_d_p3d0 = d_uv_d_uvTilted * d_uvTilted_d_uvDistorted * duvDistorted_dxryr * d_xr_yr_d_ab * d_ab_d_xyz;
+d_img_d_p3d1 = d_img_d_p3d0 * d_p3d0_d_p3d1;
+
+
+d_uv_d_pt3d = d_img_d_p3d0 * d_p3d0_d_p3d1 * d_p3d1_d_p3d2;
 
 
 
@@ -486,16 +518,32 @@ d_uv_d_t1t2 = d_uv_d_uvTilted * d_uvTilted_d_t1t2;
 
 d_uv_d_param = [d_uv_d_fxfycxcy d_uv_d_k1k2k3k4k5k6 d_uv_d_p1p2 d_uv_d_s1s2s3s4s5s6 d_uv_d_t1t2];
 
+d_alpha_d_alpha_true = alpha * alpha * exp(-alpha_true);
+d_beta_d_beta_true = beta;
+d_p3d1_d_alpha = [0, 0, d - z_old];
+d_p3d1_d_beta = [0, 0, alpha * 0.5 * d_inv * (X0 * X0 + Y0 * Y0)];
 
+d_p3d1_d_alpha_true = d_p3d1_d_alpha * d_alpha_d_alpha_true;
+d_p3d1_d_beta_true = d_p3d1_d_beta * d_beta_d_beta_true;
+d_p3d0_d_rot = -SkewSymMat(rotMat * p_3d1');
+d_p3d0_d_rot(:,3) = zeros(3,1);
+d_uv_d_param = [d_uv_d_param [d_img_d_p3d1 * d_p3d1_d_alpha_true' d_img_d_p3d1 * d_p3d1_d_beta_true'] [d_img_d_p3d0 * d_p3d0_d_rot]];
 
 end
-function [pt3d, d_pt3d_d_uv, d_pt3d_d_param] = unproject(u,v, fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz)
+function [pt3d2, d_pt3d_d_uv, d_pt3d_d_param] = unproject(u,v, fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz)
 global Param data
 
 d_pt3d_d_uv = []; d_pt3d_d_param = [];
 % u = pt2d(:,1);
 % v = pt2d(:,2);
 % Z = pt3d(:,3);
+alpha_true = alpha;
+alpha = 1 / (1 + exp(-alpha));
+beta = exp(beta);
+
+rot_vec = [rx, ry, rz];
+rotMat = rodrigues(rot_vec);
+
 
 param = [fx,fy,cx,cy,k1,k2,k3,k4,k5,k6,p1,p2,s1,s2,s3,s4,s5,s6,t1,t2, alpha, beta, rx, ry, rz];
 % fx = param(1);
@@ -534,13 +582,13 @@ else
 end
 xr_yrNorm = norm(xr_yr);
 if (xr_yrNorm == 0.0)
-    pt3d = [0 0 1];
+    pt3d2 = [0 0 1];
 else
     [theta, dthD_dth] = getThetaFromNorm_xr_yr(xr_yrNorm, param);
 end
 
 if 0
-    pt3d = [tan(theta) / xr_yrNorm * xr_yr 1];
+    pt3d2 = [tan(theta) / xr_yrNorm * xr_yr 1];
 else
     thd = xr_yrNorm;
     scaling = sin(theta)./thd;
@@ -548,6 +596,12 @@ else
     y = xr_yr(:,2)*scaling;
     z = cos(theta);
     pt3d = [x y z];
+    pt3d1 = rotMat' * pt3d';
+    [pt3d2, d_pt3d1_d_pt3d2] = compute_pt3d2_from_pt3d1(pt3d1, alpha, beta);
+    pt3d2 = pt3d2';
+    pt3d2_orig = pt3d2;
+    d_bearing_d_pt3d2 = ComputeBearingJac(pt3d2_orig);
+    pt3d2 = pt3d2./norm(pt3d2);
     
     sin_theta = sin(theta);
     cos_theta = cos(theta);
@@ -574,6 +628,7 @@ d_cos_d_k1 =  -d_cos_d_thetad * theta * theta2;
 d_pt3d_d_k1 = [mx * d_scaling_d_k1;
     my * d_scaling_d_k1;
     d_cos_d_k1];
+d_pt3d_d_k1 = d_bearing_d_pt3d2 * (inv(d_pt3d1_d_pt3d2)) * rotMat' * d_pt3d_d_k1;
 d_pt3d_d_k2 = d_pt3d_d_k1 .* theta2;
 d_pt3d_d_k3 = d_pt3d_d_k2 .* theta2;
 d_pt3d_d_k4 = d_pt3d_d_k3 .* theta2;
@@ -593,6 +648,8 @@ d_Z_d_my = d_cos_d_thetad * d_thetad_d_my;
 d_pt3d_d_mxmy = [d_X_d_mx d_X_d_my;
     d_Y_d_mx d_Y_d_my;
     d_Z_d_mx d_Z_d_my];
+
+d_pt3d_d_mxmy = d_bearing_d_pt3d2 * (inv(d_pt3d1_d_pt3d2)) * rotMat' * d_pt3d_d_mxmy;
 
 d_pt3d_d_xryr = d_pt3d_d_mxmy;
 
@@ -684,6 +741,22 @@ d_xryr_d_s1s2s3s4s5s6 = d_xryr_duvDistorted * duvDistorted_d_s1s2s3s4s5s6;
 d_pt3d_d_param = [d_pt3d_d_mxmy * d_xryr_d_fxfycxcy ...
     [d_pt3d_d_k1 d_pt3d_d_k2 d_pt3d_d_k3 d_pt3d_d_k4 d_pt3d_d_k5 d_pt3d_d_k6] ...
     d_pt3d_d_mxmy * [d_xryr_d_p1p2 d_xryr_d_s1s2s3s4s5s6 d_xryr_d_t1t2]];
+
+d_alpha_d_alpha_true = alpha * alpha * exp(-alpha_true);
+d_beta_d_beta_true = beta;
+
+z_old2 = pt3d2_orig(3);
+d = sqrt(beta * (pt3d2_orig(1)^2 + pt3d2_orig(2)^2) + z_old2 * z_old2);
+d_inv = 1 / d;
+
+d_p3d1_d_alpha = [0, 0, d - z_old2]';
+d_p3d1_d_beta = [0, 0, alpha * 0.5 * d_inv * (pt3d2_orig(1)^2 + pt3d2_orig(2)^2)]';
+
+d_p3d1_d_alpha_true = d_p3d1_d_alpha * d_alpha_d_alpha_true;
+d_p3d1_d_beta_true = d_p3d1_d_beta * d_beta_d_beta_true;
+d_p3d1_d_rot = rotMat' * SkewSymMat(pt3d);
+d_p3d1_d_rot(:,3) = zeros(3,1);
+d_pt3d_d_param = [d_pt3d_d_param [d_bearing_d_pt3d2 * (-inv(d_pt3d1_d_pt3d2)) * d_p3d1_d_alpha_true] [d_bearing_d_pt3d2 * (-inv(d_pt3d1_d_pt3d2)) * d_p3d1_d_beta_true] [d_bearing_d_pt3d2 * (inv(d_pt3d1_d_pt3d2)) * d_p3d1_d_rot]];
 
 d_pt3d_d_uv = d_pt3d_d_mxmy * d_xryr_d_uv;
 
@@ -888,4 +961,36 @@ dInvMatTiltdTauX = [sin(tauX)/(cos(tauX) * cos(tauX))               0           
 dInvMatTiltdTauY = [            0                                   0                                        0;
     tan(tauX)/cos(tauY)/cos(tauY)       sin(tauY)/cos(tauY)/cos(tauY)                          0;
     -1/cos(tauY)/cos(tauY)     tan(tauX)*sin(tauY)/cos(tauY)/cos(tauY)    sin(tauY)/cos(tauX)/cos(tauY)/cos(tauY)];
+end
+function [p3d2, d_p3d1_d_p3d2] = compute_pt3d2_from_pt3d1(p3d1, alpha, beta)
+p3d2 = p3d1;
+
+max_iter = 20;
+count = 0;
+for (i = 0 : max_iter)
+    z_old = p3d2(3);
+    d = sqrt(beta * (p3d2(1)^2 + p3d2(2)^2) + z_old * z_old);
+    d_inv = 1 / d;
+    z_new = alpha * d + (1 - alpha) * z_old;
+    p3d1_est = [p3d2(1), p3d2(2), z_new]';
+    d_p3d1_d_p3d2 = eye(3);
+    d_p3d1_d_p3d2(3, 1) = alpha * d_inv * beta * p3d2(1);
+    d_p3d1_d_p3d2(3, 2) = alpha * d_inv * beta * p3d2(2);
+    d_p3d1_d_p3d2(3, 3) = alpha * d_inv * beta * z_old + 1 - alpha;
+    correction = inv(d_p3d1_d_p3d2) * (p3d1 - p3d1_est);
+    p3d2 = p3d2 + correction;
+    count = i;
+    if (norm(correction) < 1e-15)
+        break;
+    end
+end
+
+end
+function d_errornorm_d_xyz = ComputeBearingJac(transedXYZ_c)
+if size(transedXYZ_c, 2) == 3
+    transedXYZ_c = transedXYZ_c';
+end
+ptNorm = norm(transedXYZ_c);
+ray_normalize = transedXYZ_c./norm(transedXYZ_c);
+d_errornorm_d_xyz = eye(3) / ptNorm - ray_normalize * ray_normalize' / ptNorm;
 end
