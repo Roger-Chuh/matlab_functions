@@ -25,6 +25,10 @@ rou2 = 1/ norm(p2);
 dir_x = px./norm(px);
 
 [roux, xyz, d_roux_d_rou12] = computeJac(dir1, dir2, rou1,rou2, dir_x);
+[roux_1, xyz_1, d_roux_d_rou12_1] = computeJac(dir1, dir2, rou1,rou2, dir1);
+[roux_2, xyz_2, d_roux_d_rou12_2] = computeJac(dir1, dir2, rou1,rou2, dir2);
+
+[[roux_1 - rou1] [roux_2 - rou2] [xyz_1 - p1]' [xyz_2 - p2]']
 
 [[xyz - px]' [roux - 1/norm(px)]]
 
@@ -57,6 +61,8 @@ for iter = 1 : 20
     err_sum = 0;
     for i = 1 : length(obs_rou_x_stack)
         [roux, px, d_roux_d_rou12] = computeJac(dir1, dir2, rou1, rou2, dir_x_stack(:,i));
+        [roux_2, px_2, d_roux_d_rou12_2] = computeJac(dir2, dir1, rou2, rou1, dir_x_stack(:,i));
+        check = d_roux_d_rou12([2 1]) - d_roux_d_rou12_2;
         err = roux - obs_rou_x_stack(1, i);
         H = H + d_roux_d_rou12' * d_roux_d_rou12;
         b = b - d_roux_d_rou12' * err;

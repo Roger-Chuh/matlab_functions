@@ -1,4 +1,4 @@
-function teseLineTriangulation()
+function testLineTriangulation()
 
 
 K = [499 0 321; 0 501 239; 0 0 1];
@@ -162,7 +162,7 @@ C0;
 norm(C(:) - C_(:))
 
 
-
+AA = A;
 [a2,b2,c2] = svd(AA,0);
 [a1,b1,c1] = svd(AA);
 inv(a1)*AA*inv(c1') - b1;
