@@ -42,26 +42,67 @@ rho_noise = 0.0 * (rand(pose_num, 1) - 0.5);
 rho_diff(3:end) = rho_noise(3:end);
 T_cw_stack{1, 1} = inv(T_wc_host);
 % xyz_err = 1./(host_rho + rho_diff) - 1/host_rho;
-uv_stack = {};
-for id = 1 : pose_num
-    T_wc_cur = Twc_stack{id, 1};
-    T_cw_stack{id, 1} = inv(T_wc_cur);
-    T_th = inv(T_wc_cur) * T_wc_host;
-    xyz_in_host = inv(intrMat) * pextend(host_uv')./repmat(host_rho', 3, 1);
-    xyz_in_cur = T_th(1:3,1:3) * xyz_in_host + repmat(T_th(1:3,4), 1, size(host_uv,1));
-    [target_braring, ~] = NormalizeVector(xyz_in_cur');
-    uv_stack{id, 1} = target_braring ;
+
+use_line = true;
+
+if ~use_line
+    if 1
+        is_5dof = false;
+        is_left_5dof = false;
+    end
+    add_noise = true;
+    uv_stack = {};
+    for id = 1 : pose_num
+        T_wc_cur = Twc_stack{id, 1};
+        T_cw_stack{id, 1} = inv(T_wc_cur);
+        T_th = inv(T_wc_cur) * T_wc_host;
+        xyz_in_host = inv(intrMat) * pextend(host_uv')./repmat(host_rho', 3, 1);
+        xyz_in_cur = T_th(1:3,1:3) * xyz_in_host + repmat(T_th(1:3,4), 1, size(host_uv,1));
+        [target_braring, ~] = NormalizeVector(xyz_in_cur');
+        uv_stack{id, 1} = target_braring ;
+    end
+    vm_num = size(target_braring, 1);
+else
+    if 1
+        is_5dof = true;
+    end
+    add_noise = true;
+    combinations = nchoosek(1:length(host_rho), 2);
+    vm_num = size(combinations, 1);
+    uv_stack = {};
+    for id = 1 : pose_num
+        T_wc_cur = Twc_stack{id, 1};
+        T_cw_stack{id, 1} = inv(T_wc_cur);
+        T_th = inv(T_wc_cur) * T_wc_host;
+        uv_stack{id, 1} = [];
+        for lid = 1 : size(combinations, 1)
+            id1 = combinations(lid,1);
+            id2 = combinations(lid,2);
+            xyz_in_host1 = inv(intrMat) * pextend(host_uv(id1,:)')./repmat(host_rho(id1)', 3, 1);
+            xyz_in_host2 = inv(intrMat) * pextend(host_uv(id2,:)')./repmat(host_rho(id2)', 3, 1);
+            xyz_in_cur1 = T_th(1:3,1:3) * xyz_in_host1 + T_th(1:3,4);
+            xyz_in_cur2 = T_th(1:3,1:3) * xyz_in_host2 + T_th(1:3,4);
+            plane = cross(xyz_in_cur1, xyz_in_cur2);
+            uv_stack{id, 1} = [ uv_stack{id, 1}; plane'./norm(plane)] ;
+        end
+    end
 end
 Twc_stack_gt = Twc_stack;
 
 Twc_stack_noise = Twc_stack_gt;
 fix_pose_num = 2;
-for i = 1 : pose_num
-    if i > fix_pose_num
-        if is_5dof
-            Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) zeros(3, 1);0 0 0 1];
-        else
-            Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) 0.01 * (rand(3,1)-0.5);0 0 0 1];
+if add_noise
+    for i = 1 : pose_num
+        if i > fix_pose_num
+            if is_5dof
+                Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) zeros(3, 1);0 0 0 1];
+            else
+                if ~use_line
+                    Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) 0.01 * (rand(3,1)-0.5);0 0 0 1];
+                else
+                    Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.005 * (rand(3,1)-0.5)) 0.005 * (rand(3,1)-0.5);0 0 0 1];
+                end
+            end
         end
     end
 end
@@ -80,9 +121,14 @@ for iter = 1 : iter_max
         T_wc_cur = Twc_stack_noise{id, 1};
         T_cw_stack{id, 1} = inv(T_wc_cur);
         if id >= fix_pose_num + 1 % 3
-            target_braring_predict = zeros(size(target_braring, 1), 3);
-            for pid = 1 : size(target_braring, 1)
-                [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof, is_left_5dof, is_left_5dof_right_update);
+            target_braring_predict = zeros(vm_num, 3);
+            for pid = 1 : vm_num
+                if ~use_line
+                    [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof, is_left_5dof, is_left_5dof_right_update);
+                else
+                    [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(inv(T_cw_stack{id-2, 1}), inv(T_cw_stack{id-1, 1}), inv(T_cw_stack{id, 1}), uv_stack{id-2}(pid,:)', uv_stack{id-1}(pid,:)', uv_stack{id}(pid,:)', is_5dof);
+%                     continue;
+                end
                 pose_1_start_idx = pose_size * ((id-2)-1) + 1;
                 pose_2_start_idx = pose_size * ((id-1)-1) + 1;
                 pose_3_start_idx = pose_size * ((id)-1) + 1;
@@ -166,7 +212,11 @@ for iter = 1 : iter_max
             end
         else
             dT = Exp(dxMat(1:3,k), dxMat(4:6, k));
-            Twc_stack_noise{k + fix_pose_num, 1} = dT * Twc_stack_noise{k + fix_pose_num, 1};
+            if ~use_line
+                Twc_stack_noise{k + fix_pose_num, 1} = dT * Twc_stack_noise{k + fix_pose_num, 1};
+            else
+                Twc_stack_noise{k + fix_pose_num, 1} = Twc_stack_noise{k + fix_pose_num, 1} * dT;
+            end
         end
     end
     fprintf(sprintf('iter: %d, err: %f\n', iter, error));
@@ -176,6 +226,92 @@ end
 %
 % figure,imshow(zeros(480, 640)); hold on;plot(point_trace(:,1), point_trace(:,2),'.g');plot(point_trace(1,1), point_trace(1,2),'or')
 
+
+end
+function [err, X1_predict_normalized, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(Twc1, Twc2, Twc3, X1, X2, X3, is_5dof)
+Rbc1 = Twc1(1:3,1:3);
+Rbc2 = Twc2(1:3,1:3);
+Rbc3 = Twc3(1:3,1:3);
+
+tbc1 = Twc1(1:3,4);
+tbc2 = Twc2(1:3,4);
+tbc3 = Twc3(1:3,4);
+
+R21 = Rbc2' * Rbc1;
+t21 = Rbc2' * (tbc1 - tbc2);
+R31 = Rbc3' * Rbc1;
+t31 = Rbc3' * (tbc1 - tbc3);
+
+
+X1_predict = (R21' * X2) * (t31' * X3) - (R31' * X3) * (t21' * X2);
+X1_predict_normalized = X1_predict./norm(X1_predict);
+if 0
+    err = X1_predict_normalized + X1;
+else
+    err = cross(X1_predict_normalized, X1);
+    err = SkewSymMat(X1) * X1_predict_normalized;
+end
+
+%   predict = (t31 * X1' * R21' - R31 * X1 * t21') * SkewSymMat(X2) * SkewSymMat(t21) * R21 * X1;
+%
+%   err = predict./norm(predict) + X3;
+
+predict_norm = norm(X1_predict);
+predict_norm2 = predict_norm^2;
+d_predictN_d_predict = (predict_norm * eye(3) - X1_predict * X1_predict' / predict_norm) / (predict_norm2);
+d_err_d_predict = SkewSymMat(X1) * d_predictN_d_predict;
+%
+% T21
+A1 = X2 * t31' * X3;
+B1 = R31' * X3;
+d_predict_d_R21 = R21' * SkewSymMat(A1) - B1 * t21' * SkewSymMat(X2);
+v1_1 = -R31' * X3;
+v3_1 = X2;
+d_predict_d_t21 = compute_transpose_vec_jac(v1_1, v3_1);
+d_predict_d_T21 = [d_predict_d_R21 d_predict_d_t21];
+
+% T31
+A2 = R21' * X2 * t31';
+B2 = X3 * t21' * X2;
+d_predict_d_R31 = A2 * SkewSymMat(X3) - R31' * SkewSymMat(B2);
+v1_2 = R21' * X2;
+v3_2 = X3;
+d_predict_d_t31 = compute_transpose_vec_jac(v1_2, v3_2);
+d_predict_d_T31 = [d_predict_d_R31 d_predict_d_t31];
+% relative jac, left perturb
+d_err_d_T21 = d_err_d_predict * d_predict_d_T21;
+d_err_d_T31 = d_err_d_predict * d_predict_d_T31;
+
+T21 = inv(Twc2) * Twc1;
+T31 = inv(Twc3) * Twc1;
+
+
+% jac_Twc1
+d_err_d_Tbc1_right_perturb_part1 = d_err_d_T21 * Adj(T21);
+d_err_d_Tbc1_right_perturb_part2 = d_err_d_T31 * Adj(T31);
+d_err_d_Tbc1_right_perturb_combined = d_err_d_Tbc1_right_perturb_part1 + d_err_d_Tbc1_right_perturb_part2;
+if is_5dof
+    Jac_trans_2dof = d_err_d_Tbc1_right_perturb_combined(:,4:6) * (-Rbc1' * SkewSymMat(tbc1)) * ProduceOtherOthogonalBasis(tbc1);
+    d_err_d_Twc1 =[ d_err_d_Tbc1_right_perturb_combined(:,1:3)  Jac_trans_2dof];
+else
+    d_err_d_Twc1 = d_err_d_Tbc1_right_perturb_combined;
+end
+% jac_Twc2
+d_err_d_Tbc2_right_perturb = -d_err_d_T21;
+if is_5dof
+    Jac_trans_2dof = d_err_d_Tbc2_right_perturb(:,4:6) * (-Rbc2' * SkewSymMat(tbc2)) * ProduceOtherOthogonalBasis(tbc2);
+    d_err_d_Twc2 = [d_err_d_Tbc2_right_perturb(:,1:3) Jac_trans_2dof];
+else
+    d_err_d_Twc2 = d_err_d_Tbc2_right_perturb;
+end
+% jac_Twc3
+d_err_d_Tbc3_right_perturb = -d_err_d_T31;
+if is_5dof
+    Jac_trans_2dof = d_err_d_Tbc3_right_perturb(:,4:6) * (-Rbc3' * SkewSymMat(tbc3)) * ProduceOtherOthogonalBasis(tbc3);
+    d_err_d_Twc3 = [d_err_d_Tbc3_right_perturb(:,1:3) Jac_trans_2dof];
+else
+    d_err_d_Twc3 = d_err_d_Tbc3_right_perturb;
+end
 
 end
 function Mat2 = GrowMat(Mat1, rows, cols, start_row, start_col)
