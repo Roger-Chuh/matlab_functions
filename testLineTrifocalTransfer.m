@@ -1,17 +1,17 @@
-function testLineTriangulationIdp()
+function testLineTrifocalTransfer()
 K = [499 0 321; 0 501 239; 0 0 1];
 Rwc1 = rodrigues([0.01 0.02 0.03]);
-twc1 = [-100; 0; 100];
+twc1 = [-10; 0; -100];
 % Rwc1 = eye(3);
 
 Rwc{1} = Rwc1;
 twc{1} = twc1;
-pose_num = 20;
+pose_num = 10;
 
 
 for i = 2 : pose_num
-    Rwc{i} = Rwc1*rodrigues(0.1 * (rand(3,1)-0.5));
-    twc{i} = twc1 + 1 * (rand(3,1)-0.5);
+    Rwc{i} = Rwc1*rodrigues(0.01 * (rand(3,1)-0.5));
+    twc{i} = twc1 + 0.1 * (rand(3,1)-0.5);
 end
 
 
@@ -59,7 +59,35 @@ for i = 1 : pose_num
     end
 end
 
+Twc1 = [Rwc{1} twc{1};0 0 0 1];
+Twc2 = [Rwc{2} twc{2};0 0 0 1];
+Twc3 = [Rwc{3} twc{3};0 0 0 1];
 
+X1 = Obs{1,1}(1,:)';
+X2 = Obs{2,1}(1,:)';
+X3 = Obs{3,1}(1,:)';
+
+err11 = trifocalTransfer(Twc1, Twc2, Twc3, X1, X2, X3);
+
+
+
+
+pi1 = cross( Obs{1,1}(1,:),  Obs{1,1}(end,:));
+pi1 = pi1'./norm(pi1);
+pi2 = cross( Obs{2,1}(1,:),  Obs{2,1}(end,:));
+pi2 = pi2'./norm(pi2);
+pi3 = cross( Obs{3,1}(1,:),  Obs{3,1}(end,:));
+pi3 = pi3'./norm(pi3);
+
+if 0
+    pi1 = sign(pi1(2)) * pi1;
+    pi2 = sign(pi2(2)) * pi2;
+    pi3 = sign(pi3(3)) * pi3;
+end
+
+err22 = trifocalTransferLine(Twc1, Twc2, Twc3, pi1, pi2, pi3)
+
+return;
 
 for i = 1 : pid
     pii{i} = pi_from_ppp(uv_start{i}, uv_end{i}, [0;0;0]);
@@ -94,6 +122,7 @@ for i = 1 : pose_num
     end
     
 end
+
 
 err = [];
 for fid = 1 : pose_num
@@ -377,6 +406,54 @@ inv(a1)*AA*inv(c1') - b1;
 pinv(a2)*AA*inv(c2') - b2;
 
 %figure,line([uvS1(1) uvE1(1) uvS2(1) uvE2(1)], [uvS1(2)  uvE1(2) uvS2(2) uvE2(2)],'Color', [1 0 0])
+end
+function err = trifocalTransfer(Twc1, Twc2, Twc3, X1, X2, X3)
+  Rbc1 = Twc1(1:3,1:3);
+  Rbc2 = Twc2(1:3,1:3);
+  Rbc3 = Twc3(1:3,1:3);
+
+  tbc1 = Twc1(1:3,4);
+  tbc2 = Twc2(1:3,4);
+  tbc3 = Twc3(1:3,4);
+
+  R21 = Rbc2' * Rbc1;
+  t21 = Rbc2' * (tbc1 - tbc2);
+  R31 = Rbc3' * Rbc1;
+  t31 = Rbc3' * (tbc1 - tbc3);
+
+  predict = (t31 * X1' * R21' - R31 * X1 * t21') * SkewSymMat(X2) * SkewSymMat(t21) * R21 * X1;
+
+  err = predict./norm(predict) + X3;
+  
+end
+function err = trifocalTransferLine(Twc1, Twc2, Twc3, X1, X2, X3)
+  Rbc1 = Twc1(1:3,1:3);
+  Rbc2 = Twc2(1:3,1:3);
+  Rbc3 = Twc3(1:3,1:3);
+
+  tbc1 = Twc1(1:3,4);
+  tbc2 = Twc2(1:3,4);
+  tbc3 = Twc3(1:3,4);
+
+  R21 = Rbc2' * Rbc1;
+  t21 = Rbc2' * (tbc1 - tbc2);
+  R31 = Rbc3' * Rbc1;
+  t31 = Rbc3' * (tbc1 - tbc3);
+
+  
+  X1_predict = (R21' * X2) * (t31' * X3) - (R31' * X3) * (t21' * X2);
+  X1_predict_normalized = X1_predict./norm(X1_predict);
+  if 0
+      err = X1_predict_normalized + X1;
+  else
+      err = cross(X1_predict_normalized, X1);
+      err = SkewSymMat(X1) * X1_predict_normalized;
+  end
+  
+%   predict = (t31 * X1' * R21' - R31 * X1 * t21') * SkewSymMat(X2) * SkewSymMat(t21) * R21 * X1;
+% 
+%   err = predict./norm(predict) + X3;
+  
 end
 function result =  Exp(w, v)
 

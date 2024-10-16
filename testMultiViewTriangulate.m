@@ -1,10 +1,10 @@
 function testMultiViewTriangulate()
 
 
-pose{1,1} = [rodrigues([0.1 0.02 0.03]) [10 20 30]';0 0 0 1];
-pose{2,1} = [rodrigues([0.1 -0.02 0.03]) [10 20 -30]';0 0 0 1];
-pose{3,1} = [rodrigues([-0.1 0.02 0.03]) [-10 20 30]';0 0 0 1];
-pose{4,1} = [rodrigues([0.1 -0.02 -0.03]) [-10 -20 30]';0 0 0 1];
+Twc{1,1} = [rodrigues([0.1 0.02 0.03]) [10 20 30]';0 0 0 1];
+Twc{2,1} = [rodrigues([0.1 -0.02 0.03]) [10 20 -30]';0 0 0 1];
+Twc{3,1} = [rodrigues([-0.1 0.02 0.03]) [-10 20 30]';0 0 0 1];
+Twc{4,1} = [rodrigues([0.1 -0.02 -0.03]) [-10 -20 30]';0 0 0 1];
 
 
 
@@ -13,16 +13,16 @@ XYZ = [10 20 1300];
 
 K = [400 0 320; 0 400 240;0 0 1];
 
-poses = {};
-for i = 1 : length(pose)
-    [ptIcs(i,:), tgtPt3d] = TransformAndProject(XYZ, K, pose{i,1}(1:3, 1:3)', -pose{i,1}(1:3, 1:3)'*pose{i,1}(1:3, 4));
+Tcw = {};
+for i = 1 : length(Twc)
+    [ptIcs(i,:), tgtPt3d] = TransformAndProject(XYZ, K, Twc{i,1}(1:3, 1:3)', -Twc{i,1}(1:3, 1:3)'*Twc{i,1}(1:3, 4));
     
     bearing = inv(K) * [ptIcs(i,:) 1]';
     bearings(i,:) = bearing'./norm(bearing);
-    poses{i,1} = inv(pose{i,1});
+    Tcw{i,1} = inv(Twc{i,1});
 end
  
-pt3d = triangulate(poses, bearings);
+pt3d = triangulate(Tcw, bearings);
 
 
 end

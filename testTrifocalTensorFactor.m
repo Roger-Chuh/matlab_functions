@@ -31,7 +31,9 @@ pose_num = 20;
 T_wc_host = [reshape(poseMat(1, 1:9), 3, 3) poseMat(1, 10:12)';0 0 0 1];
 
 use_bearing = true;false;
-is_5dof = false; true;
+is_5dof = true; true;
+is_left_5dof = true;
+is_left_5dof_right_update = true;
 point_trace = pextend(host_uv')';
 % point_trace_gt = [host_uv 1];
 
@@ -64,7 +66,7 @@ for i = 1 : pose_num
     end
 end
 
-iter_max = 20;
+iter_max = 10;
 for iter = 1 : iter_max
     if is_5dof
         pose_size = 5;
@@ -80,7 +82,7 @@ for iter = 1 : iter_max
         if id >= fix_pose_num + 1 % 3
             target_braring_predict = zeros(size(target_braring, 1), 3);
             for pid = 1 : size(target_braring, 1)
-                [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof);
+                [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof, is_left_5dof, is_left_5dof_right_update);
                 pose_1_start_idx = pose_size * ((id-2)-1) + 1;
                 pose_2_start_idx = pose_size * ((id-1)-1) + 1;
                 pose_3_start_idx = pose_size * ((id)-1) + 1;
@@ -118,12 +120,50 @@ for iter = 1 : iter_max
     dxMat = reshape(dx, pose_size, []);
     for k = 1 : size(dxMat, 2)
         if is_5dof
-            dR = rodrigues(dxMat(1:3,k));
-            Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) = Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) * dR;
-            Ag = ProduceOtherOthogonalBasis(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
-            rot_vec = Ag * dxMat(4:5,k);
-            trans_new = rodrigues(rot_vec) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
-            Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+            if ~is_left_5dof
+                dR = rodrigues(dxMat(1:3,k));
+                Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) = Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) * dR;
+                Ag = ProduceOtherOthogonalBasis(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                rot_vec = Ag * dxMat(4:5,k);
+                trans_new = rodrigues(rot_vec) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+                len1 = norm(trans_new);
+                len2 = norm(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                trans_diff = len1 - len2;
+                fprintf(sprintf('########################## trans_diff: %f\n', trans_diff));
+                Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+            else
+                if ~is_left_5dof_right_update
+                    dr = dxMat(1:3,k);
+                    Ag = ProduceOtherOthogonalBasis(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                    rot_vec = Ag * dxMat(4:5,k);
+                    trans_new = rodrigues(rot_vec) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+                    dt = trans_new - Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+                    %                 dt = trans_new - rodrigues(dr) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+                    dT = Exp(dr, dt);
+                    %                 dT = [rodrigues(dr) dt;0 0 0 1];
+                    if 1
+                        len1 = norm(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                        Twc_stack_noise{k + fix_pose_num, 1} = dT * Twc_stack_noise{k + fix_pose_num, 1};
+                        len2 = norm(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                        len3 = norm(trans_new);
+                        trans_diff = len1 - len2;
+                        trans_diff2 = len1 - len3;
+                        %                     fprintf(sprintf('########################## trans_diff: %f, trans_diff2: %f\n', trans_diff, trans_diff2));
+                        asfdjgdh = 1;
+                        %                     Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+                    else
+                        %                     Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) = rodrigues(dr) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3);
+                        %                     Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+                    end
+                else
+                    dR = rodrigues(dxMat(1:3,k));
+                    Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) = Twc_stack_noise{k + fix_pose_num, 1}(1:3,1:3) * dR;
+                    Ag = ProduceOtherOthogonalBasis(Twc_stack_noise{k + fix_pose_num, 1}(1:3,4));
+                    rot_vec = Ag * dxMat(4:5,k);
+                    trans_new = rodrigues(rot_vec) * Twc_stack_noise{k + fix_pose_num, 1}(1:3,4);
+                    Twc_stack_noise{k + fix_pose_num, 1}(1:3,4) = trans_new;
+                end
+            end
         else
             dT = Exp(dxMat(1:3,k), dxMat(4:6, k));
             Twc_stack_noise{k + fix_pose_num, 1} = dT * Twc_stack_noise{k + fix_pose_num, 1};
@@ -230,7 +270,7 @@ result(1:3,1:3) = so3;
 result(1:3,4) = tran;
 
 end
-function [err, bearing33, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(Tc1w, Tc2w, Tc3w, K, bearing1, bearing2, bearing3, use_bearing, is_5dof)
+function [err, bearing33, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(Tc1w, Tc2w, Tc3w, K, bearing1, bearing2, bearing3, use_bearing, is_5dof, is_left_5dof, is_left_5dof_right_update)
 
 d_err_d_Rwc1 =[];
 d_err_d_Rwc2 = [];
@@ -283,7 +323,7 @@ t31 = -R13'*t13;
 
 
 
-if is_5dof
+if is_5dof && ~is_left_5dof
     %=================================
     A = (Rbc3' * tbc1 - Rbc3'*tbc3) * X1';
     B = SkewSymMat(X2) * SkewSymMat(Rbc2' * tbc1 - Rbc2' * tbc2);
@@ -323,6 +363,7 @@ if is_5dof
     A = X1' * Rbc1' * Rbc2 * SkewSymMat(X2) * Rbc2' * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1;
     d_err_d_twc3 = Rbc3' * SkewSymMat(tbc3 * A);
     d_err_d_twc3 = d_err_d_twc3 * ProduceOtherOthogonalBasis(tbc3);
+
 else
     %=================================
     d_err_d_Rwc1 =  Rbc3' * (tbc1 - tbc3) * X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * (-1) * (Rbc1 * SkewSymMat(X1) * Rbc1' * (-SkewSymMat(tbc1))    +   Rbc1 * SkewSymMat(X1) * Rbc1' * SkewSymMat(tbc1 - tbc2)   -  SkewSymMat(Rbc1 * SkewSymMat(X1) * Rbc1' * (tbc1 - tbc2)) ) ...
@@ -372,6 +413,85 @@ else
     %=====================================
     d_err_d_twc3 = -Rbc3' * (X1' * Rbc1' * SkewSymMat(Rbc2 * X2) * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1);
 end
+
+if is_left_5dof
+    if ~is_left_5dof_right_update
+        d_err_d_twc1 = d_err_d_twc1 * (-SkewSymMat(tbc1)) * ProduceOtherOthogonalBasis(tbc1);
+        d_err_d_twc2 = d_err_d_twc2 * (-SkewSymMat(tbc2)) * ProduceOtherOthogonalBasis(tbc2);
+        d_err_d_twc3 = d_err_d_twc3 * (-SkewSymMat(tbc3)) * ProduceOtherOthogonalBasis(tbc3);
+    else
+        d_err_d_Twc1 = [d_err_d_Rwc1 d_err_d_twc1] * Adj(Twc1);
+        d_err_d_Twc2 = [d_err_d_Rwc2 d_err_d_twc2] * Adj(Twc2);
+        d_err_d_Twc3 = [d_err_d_Rwc3 d_err_d_twc3] * Adj(Twc3);
+        
+        d_err_d_Rwc1 = d_err_d_Twc1(:,1:3);
+        d_err_d_twc1 = d_err_d_Twc1(:,4:6);
+        
+        d_err_d_Rwc2 = d_err_d_Twc2(:,1:3);
+        d_err_d_twc2 = d_err_d_Twc2(:,4:6);
+        
+        d_err_d_Rwc3 = d_err_d_Twc3(:,1:3);
+        d_err_d_twc3 = d_err_d_Twc3(:,4:6);
+        
+        d_err_d_twc11 = d_err_d_twc1 * (-Rbc1' * SkewSymMat(tbc1)) * ProduceOtherOthogonalBasis(tbc1);
+        d_err_d_twc22 = d_err_d_twc2 * (-Rbc2' * SkewSymMat(tbc2)) * ProduceOtherOthogonalBasis(tbc2);
+        d_err_d_twc33 = d_err_d_twc3 * (-Rbc3' * SkewSymMat(tbc3)) * ProduceOtherOthogonalBasis(tbc3);
+        
+        
+        
+        if 0
+            %=================================
+            A = (Rbc3' * tbc1 - Rbc3'*tbc3) * X1';
+            B = SkewSymMat(X2) * SkewSymMat(Rbc2' * tbc1 - Rbc2' * tbc2);
+            C = X1 * (Rbc2' * tbc1 - Rbc2' * tbc2)' * SkewSymMat(X2) * SkewSymMat(Rbc2' * tbc1 - Rbc2' * tbc2);
+            d_err_d_Rwc1 = -A * Rbc1' * Rbc2 * B * Rbc2' * Rbc1 * SkewSymMat(X1) + A * SkewSymMat(Rbc1' * Rbc2 * B * Rbc2' * Rbc1 * X1) ...
+                + Rbc3' * Rbc1 * C * Rbc2' * Rbc1 * SkewSymMat(X1) + Rbc3' * Rbc1 * SkewSymMat(C * Rbc2' * Rbc1 * X1);
+            %==================================
+            A = X1' * Rbc1' * Rbc2 * SkewSymMat(X2) * Rbc2';
+            B = Rbc3' * Rbc1 * X1;
+            C = Rbc2 * SkewSymMat(X2) * Rbc2';
+            D = Rbc1 * X1;
+            d_err_d_twc1 = Rbc3' * (tbc1 - tbc3) * A * SkewSymMat(D) * SkewSymMat(tbc1) ...
+                + Rbc3' * SkewSymMat(tbc1 * A * SkewSymMat(D) * (tbc1 - tbc2)) ...
+                - B * (tbc1' - tbc2') * C * SkewSymMat(D) * SkewSymMat(tbc1) ...
+                + B * tbc1' * SkewSymMat(C * SkewSymMat(D) * (tbc1 - tbc2));
+            d_err_d_twc1 = d_err_d_twc1 * ProduceOtherOthogonalBasis(tbc1);
+            %==================================
+            A = (Rbc3' * tbc1 - Rbc3' * tbc3) * X1';
+            B = Rbc3' * Rbc1 * X1;
+            C = SkewSymMat(tbc1 - tbc2) * Rbc1 * X1;
+            D = A * Rbc1' - B * (tbc1 - tbc2)';
+            d_err_d_Rwc2 = D * SkewSymMat(C) * Rbc2 * SkewSymMat(X2);
+            %==================================
+            A = (Rbc3' * tbc1 - Rbc3' * tbc3) * X1' * Rbc1' * Rbc2 * SkewSymMat(X2) * Rbc2';
+            B = Rbc3' * Rbc1 * X1;
+            C = Rbc2 * SkewSymMat(X2) * Rbc2';
+            D = Rbc1 * X1;
+            d_err_d_twc2 = -A * SkewSymMat(D) * SkewSymMat(tbc2) + B * (tbc1' - tbc2') * C * SkewSymMat(D) * SkewSymMat(tbc2) ...
+                - B * tbc2' * SkewSymMat(C * SkewSymMat(D) * (tbc1 - tbc2));
+            d_err_d_twc2 = d_err_d_twc2 * ProduceOtherOthogonalBasis(tbc2);
+            %=====================================================
+            A = X1' * (Rbc2' * Rbc1)' * SkewSymMat(X2) * SkewSymMat(Rbc2' * tbc1 - Rbc2' * tbc2) * Rbc2' * Rbc1 * X1;
+            B = Rbc1 * X1 * (Rbc2' * tbc1 - Rbc2' * tbc2)' * SkewSymMat(X2) * SkewSymMat(Rbc2' * tbc1 - Rbc2' * tbc2) * Rbc2' * Rbc1 * X1;
+            C = (tbc1 - tbc3) * A - B;
+            d_err_d_Rwc3 = SkewSymMat(Rbc3' * C);
+            %===================================================
+            A = X1' * Rbc1' * Rbc2 * SkewSymMat(X2) * Rbc2' * SkewSymMat(tbc1 - tbc2) * Rbc1 * X1;
+            d_err_d_twc3 = Rbc3' * SkewSymMat(tbc3 * A);
+            d_err_d_twc3 = d_err_d_twc3 * ProduceOtherOthogonalBasis(tbc3);
+            
+            diff1 = d_err_d_twc11 - d_err_d_twc1;
+            diff2 = d_err_d_twc22 - d_err_d_twc2;
+            diff3 = d_err_d_twc33 - d_err_d_twc3;
+        else
+            d_err_d_twc1 = d_err_d_twc11;
+            d_err_d_twc2 = d_err_d_twc22;
+            d_err_d_twc3 = d_err_d_twc33;
+        end
+    end
+end
+
+
 
 PA = [ eye(3), zeros( 3, 1 ) ];
 PB = [ R12', -R12'*t12 ]; % T21
@@ -607,5 +727,14 @@ jac(2, 3) = v1y * v3z;
 jac(3, 1) = v1z * v3x;
 jac(3, 2) = v1z * v3y;
 jac(3, 3) = v1z * v3z;
+
+end
+function jac = Adj(T)
+R = T(1:3,1:3);
+jac = zeros(6,6);
+jac(1:3,1:3) = R;
+jac(4:6, 4:6) = R;
+jac(4:6,1:3) = SkewSymMat(T(1:3,4)) * R;
+jac(1:3, 4:6) = zeros(3, 3);
 
 end

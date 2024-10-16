@@ -4,18 +4,35 @@ function delta_ang_trans = AnalyseVI(inputDir)
 
 if 0
     
-    close all
     delta_ang_trans1_1 = AnalyseVI('G:\matlab\data\traj\12_ext\yvr\4');delta_ang_trans1 = delta_ang_trans1_1;
     delta_ang_trans2_1 = AnalyseVI('G:\matlab\data\traj\12_ext\qvr\4');delta_ang_trans2 = delta_ang_trans2_1;
+    
+    close all
+    delta_ang_trans1_1 = AnalyseVI('\\192.168.9.225\original_hand_dataset\tmp\1\data');delta_ang_trans1 = delta_ang_trans1_1;
+    delta_ang_trans2_1 = AnalyseVI('\\192.168.9.225\original_hand_dataset\tmp\2\data');delta_ang_trans2 = delta_ang_trans2_1;
     mean(delta_ang_trans1)-mean(delta_ang_trans2)
     median(delta_ang_trans1)-median(delta_ang_trans2)
     num = min([size(delta_ang_trans1,1) size(delta_ang_trans2,1)]);
-    figure,hist([delta_ang_trans1(1:num,1) delta_ang_trans2(1:num,1)],100); title('rotation error (deg)'); legend('yvr','qualcomm');
-    figure,hist([delta_ang_trans1(1:num,2) delta_ang_trans2(1:num,2)],100); title('translation error (m)'); legend('yvr','qualcomm');
-    figure,hist([delta_ang_trans1(1:num,3) delta_ang_trans2(1:num,3)],100); title('reprojection error (pixel)'); legend('yvr','qualcomm');
+    figure,hist([delta_ang_trans1(1:num,1) delta_ang_trans2(1:num,1)],100); title('rotation error (deg)'); legend('yvr','qualcomm');grid on;
+    figure,hist([delta_ang_trans1(1:num,2) delta_ang_trans2(1:num,2)],100); title('translation error (m)'); legend('yvr','qualcomm');grid on;
+    figure,hist([delta_ang_trans1(1:num,3) delta_ang_trans2(1:num,3)],100); title('reprojection error (pixel)'); legend('yvr','qualcomm');grid on;
+    figure,hist([delta_ang_trans1(1:num,1) - delta_ang_trans2(1:num,1)], 100); title('rotation error (deg)'); legend('yvr - qualcomm');grid on;
+    figure,hist([delta_ang_trans1(1:num,2) - delta_ang_trans2(1:num,2)], 100); title('translation error (m)'); legend('yvr - qualcomm');grid on;
+    figure,hist([delta_ang_trans1(1:num,3) - delta_ang_trans2(1:num,3)], 100); title('reprojection error (pixel)'); legend('yvr - qualcomm');grid on;
     
-    
-    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    close all
+    delta_ang_trans1_1 = AnalyseVI('\\192.168.9.225\original_hand_dataset\tmp\device_calibration_ucmrtp_pre\4\data');delta_ang_trans1 = delta_ang_trans1_1;
+    delta_ang_trans2_1 = AnalyseVI('\\192.168.9.225\original_hand_dataset\tmp\device_calibration_ucmrtp_new\4\data');delta_ang_trans2 = delta_ang_trans2_1;
+    mean(delta_ang_trans1)-mean(delta_ang_trans2)
+    median(delta_ang_trans1)-median(delta_ang_trans2)
+    num = min([size(delta_ang_trans1,1) size(delta_ang_trans2,1)]);
+    figure,hist([delta_ang_trans1(1:num,1) delta_ang_trans2(1:num,1)],100); title('rotation error (deg)'); legend('old','new');grid on;
+    figure,hist([delta_ang_trans1(1:num,2) delta_ang_trans2(1:num,2)],100); title('translation error (m)'); legend('old','new');grid on;
+    figure,hist([delta_ang_trans1(1:num,3) delta_ang_trans2(1:num,3)],100); title('reprojection error (pixel)'); legend('old','new');grid on;
+    figure,hist([delta_ang_trans1(1:num,1) - delta_ang_trans2(1:num,1)], 100); title('rotation error (deg)'); legend('old - new');grid on;
+    figure,hist([delta_ang_trans1(1:num,2) - delta_ang_trans2(1:num,2)], 100); title('translation error (m)'); legend('old - new');grid on;
+    figure,hist([delta_ang_trans1(1:num,3) - delta_ang_trans2(1:num,3)], 100); title('reprojection error (pixel)'); legend('old - new');grid on;
     
     
     
@@ -180,7 +197,7 @@ for i = firstId : size(data_camera_traj,1)
 end
 delta_ang_trans = [delta_ang_trans rep];
 figure,subplot(2,2,2);plot(delta_ang_trans);legend('deg','m','pixel');subplot(2,2,3),plot(vi(:,5:7));legend('x','y','z');
-subplot(2,2,4);hist(delta_ang_trans, 100); subplot(2,2,1);plotPath(camPath);hold on;plotPath(camPathComp);
+subplot(2,2,4);hist(delta_ang_trans, 100);legend('deg','m','pixel'); subplot(2,2,1);plotPath(camPath);hold on;plotPath(camPathComp);
 
 % figure,plotPath(camPath_);hold on;plotPath(camPathComp_);
 

@@ -1,12 +1,22 @@
-function WriteGif(inputDir, gifName,delay, inputDir2)
+function WriteGif(inputDir, gifName,delay, varargin)
+if (nargin == 3)
+    inputDir2 = [];
+    dirInfo2 = [];
+elseif nargin == 4
+    inputDir2 = varargin{1};
+else
+    error('Too many input arguments');
+end
 dirInfo = dir(fullfile(inputDir, '*.png'));
-dirInfo2 = dir(fullfile(inputDir2, '*.png'));
-
 if length(dirInfo) == 0
     dirInfo = dir(fullfile(inputDir, '*.bmp'));
 end
-if length(dirInfo2) == 0
-    dirInfo2 = dir(fullfile(inputDir2, '*.bmp'));
+
+if (~isempty(inputDir2))
+    dirInfo2 = dir(fullfile(inputDir2, '*.png'));
+    if length(dirInfo2) == 0
+        dirInfo2 = dir(fullfile(inputDir2, '*.bmp'));
+    end
 end
 
 nImages = length(dirInfo);
@@ -27,21 +37,24 @@ for idx = 1 : nImages
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([640,1706])./1);
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([960,1280])./1);
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([740,920])./1);
-    img0 = imread(fullfile(inputDir, dirInfo(idx).name));
-    img2 = double(img0(1:0.5*size(img0,1),1:0.5*size(img0,2)));
-    img3 = double(img0(1:0.5*size(img0,1),0.5*size(img0,2)+1:end));
-    img1 = double(img0(0.5*size(img0,1)+1:end,1:0.5*size(img0,2)));
-    img4 = double(img0(0.5*size(img0,1)+1:end,0.5*size(img0,2)+1:end));
-    
-    mean_gray_each(idx,1) = sum(img1(:)) / size(img1,1) / size(img1,2);
-    mean_gray_each(idx,2) = sum(img2(:)) / size(img2,1) / size(img2,2);
-    mean_gray_each(idx,3) = sum(img3(:)) / size(img3,1) / size(img3,2);
-    mean_gray_each(idx,4) = sum(img4(:)) / size(img4,1) / size(img4,2);
-    
-    mean_gray(idx,1) = sum(sum(double(img0))) / size(img0,1) / size(img0,2);
-    img = imresize(img0, 0.5);
-    img = insertText(img, [50, 50], sprintf('level: %d', str2double(dirInfo(idx).name(1:3))), 'FontSize', 20, 'TextColor', 'red');
-    
+    if 0
+        img0 = imread(fullfile(inputDir, dirInfo(idx).name));
+        img2 = double(img0(1:0.5*size(img0,1),1:0.5*size(img0,2)));
+        img3 = double(img0(1:0.5*size(img0,1),0.5*size(img0,2)+1:end));
+        img1 = double(img0(0.5*size(img0,1)+1:end,1:0.5*size(img0,2)));
+        img4 = double(img0(0.5*size(img0,1)+1:end,0.5*size(img0,2)+1:end));
+        
+        mean_gray_each(idx,1) = sum(img1(:)) / size(img1,1) / size(img1,2);
+        mean_gray_each(idx,2) = sum(img2(:)) / size(img2,1) / size(img2,2);
+        mean_gray_each(idx,3) = sum(img3(:)) / size(img3,1) / size(img3,2);
+        mean_gray_each(idx,4) = sum(img4(:)) / size(img4,1) / size(img4,2);
+        
+        mean_gray(idx,1) = sum(sum(double(img0))) / size(img0,1) / size(img0,2);
+        img = imresize(img0, 0.5);
+        img = insertText(img, [50, 50], sprintf('level: %d', str2double(dirInfo(idx).name(1:3))), 'FontSize', 20, 'TextColor', 'red');
+    else
+         img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),0.5);
+    end
     if length(dirInfo2) ~= 0
         img0 = imread(fullfile(inputDir2, dirInfo(idx).name));
         img2 = double(img0(1:0.5*size(img0,1),1:0.5*size(img0,2)));
