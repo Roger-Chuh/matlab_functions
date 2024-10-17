@@ -3,16 +3,21 @@ function testLineTriangulation()
 
 K = [499 0 321; 0 501 239; 0 0 1];
 
+fix_first_at_identity = false;
 
 Rwc1 = rodrigues([0.01 0.02 0.03]);
-% Rwc1 = eye(3);
+if fix_first_at_identity
+    Rwc1 = eye(3);
+end
 Rwc2 = Rwc1*rodrigues([0.01 0.02 0.01]);
 Rwc3 = Rwc2*rodrigues([-0.03 -0.01 0.01]);
 Rwc4 = Rwc3*rodrigues([0.04 0.04 0.01]);
 
 
 twc1 = [-100; 0; 100];
-% twc1 = [-0; 0; 0];
+if fix_first_at_identity
+    twc1 = [-0; 0; 0];
+end
 twc2 = [-0; 0; 200];
 twc3 = [100; 0; 100];
 twc4 = [-200; 0; 300];
@@ -68,6 +73,8 @@ for i = 2 : 4
     
     p3 = [obs(i,1:2)';1];%(obsj_tmp(0), obsj_tmp(1), 1);
     p4 = [obs(i,3:4)';1];  %Vector3d p4(obsj_tmp(2), obsj_tmp(3), 1);
+    p3 = p3 ./norm(p3);
+    p4 = p4 ./norm(p4);
     p3 = Rij * p3 + tij;
     p4 = Rij * p4 + tij;
     pij = pi_from_ppp(p3, p4,tij);
@@ -80,6 +87,12 @@ for i = 2 : 4
     v(:,i-1) = plk(4:6); %plk(4:6)./norm(plk(4:6));
     
 end
+
+
+% n v 是第一帧坐标系下的plk坐标。
+%【这个例子中，第一帧在世界系下的pose并不是eye(4),12，13，14帧上的线三角化出的plk都是表达在1坐标系下的，并且结果都是一样的】
+
+
 C0 = [n(:,1) v(:,1)];
 kObvNum = 4; 3;
 %  Eigen::Matrix<double, 2 * kObvNum, 6> A_temp;
@@ -156,6 +169,11 @@ C00 = 1.3.*C0;
     CC = [plk_w(1:3) plk_w(4:6)];
 end
 
+
+dist_pose1_origin_to_line = CC(:,1) - cross(twc1, CC(:,2));
+dist_pose1_origin_to_line_check = C0(:,1) - cross(zeros(3,1), C0(:,2));
+
+dist_diff = norm(dist_pose1_origin_to_line_check) - norm(dist_pose1_origin_to_line);
 
 C0;
 [C C_]

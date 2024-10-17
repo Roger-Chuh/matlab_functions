@@ -64,7 +64,8 @@ if ~use_line
     vm_num = size(target_braring, 1);
 else
     if 1
-        is_5dof = true;
+        is_5dof = false;
+        use_dist_2_plane = true;
     end
     add_noise = true;
     combinations = nchoosek(1:length(host_rho), 2);
@@ -83,7 +84,7 @@ else
             xyz_in_cur1 = T_th(1:3,1:3) * xyz_in_host1 + T_th(1:3,4);
             xyz_in_cur2 = T_th(1:3,1:3) * xyz_in_host2 + T_th(1:3,4);
             plane = cross(xyz_in_cur1, xyz_in_cur2);
-            uv_stack{id, 1} = [ uv_stack{id, 1}; plane'./norm(plane)] ;
+            uv_stack{id, 1} = [ uv_stack{id, 1}; [plane'./norm(plane) xyz_in_cur1'./norm(xyz_in_cur1) xyz_in_cur2'./norm(xyz_in_cur2)]] ;
         end
     end
 end
@@ -100,7 +101,11 @@ if add_noise
                 if ~use_line
                     Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.01 * (rand(3,1)-0.5)) 0.01 * (rand(3,1)-0.5);0 0 0 1];
                 else
-                    Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.005 * (rand(3,1)-0.5)) 0.005 * (rand(3,1)-0.5);0 0 0 1];
+                    if ~use_dist_2_plane
+                        Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.005 * (rand(3,1)-0.5)) 0.005 * (rand(3,1)-0.5);0 0 0 1];
+                    else
+                        Twc_stack_noise{i,1} = Twc_stack{i,1} * [rodrigues(0.005 * (rand(3,1)-0.5)) 0.005 * (rand(3,1)-0.5);0 0 0 1];
+                    end
                 end
             end
         end
@@ -126,7 +131,7 @@ for iter = 1 : iter_max
                 if ~use_line
                     [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransfer(T_cw_stack{id-2, 1}, T_cw_stack{id-1, 1}, T_cw_stack{id, 1}, eye(3), uv_stack{id-2}(pid,:), uv_stack{id-1}(pid,:), uv_stack{id}(pid,:), use_bearing, is_5dof, is_left_5dof, is_left_5dof_right_update);
                 else
-                    [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(inv(T_cw_stack{id-2, 1}), inv(T_cw_stack{id-1, 1}), inv(T_cw_stack{id, 1}), uv_stack{id-2}(pid,:)', uv_stack{id-1}(pid,:)', uv_stack{id}(pid,:)', is_5dof);
+                    [err, target_braring_predict(pid,:), d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(inv(T_cw_stack{id-2, 1}), inv(T_cw_stack{id-1, 1}), inv(T_cw_stack{id, 1}), uv_stack{id-2}(pid,:)', uv_stack{id-1}(pid,:)', uv_stack{id}(pid,:)', is_5dof, use_dist_2_plane);
 %                     continue;
                 end
                 pose_1_start_idx = pose_size * ((id-2)-1) + 1;
@@ -228,7 +233,7 @@ end
 
 
 end
-function [err, X1_predict_normalized, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(Twc1, Twc2, Twc3, X1, X2, X3, is_5dof)
+function [err, X1_predict_normalized, d_err_d_Twc1, d_err_d_Twc2, d_err_d_Twc3] = trifocalTransferLine(Twc1, Twc2, Twc3, X11, X22, X33, is_5dof, use_dist_2_plane)
 Rbc1 = Twc1(1:3,1:3);
 Rbc2 = Twc2(1:3,1:3);
 Rbc3 = Twc3(1:3,1:3);
@@ -242,6 +247,9 @@ t21 = Rbc2' * (tbc1 - tbc2);
 R31 = Rbc3' * Rbc1;
 t31 = Rbc3' * (tbc1 - tbc3);
 
+X1 = X11(1:3);
+X2 = X22(1:3);
+X3 = X33(1:3);
 
 X1_predict = (R21' * X2) * (t31' * X3) - (R31' * X3) * (t21' * X2);
 X1_predict_normalized = X1_predict./norm(X1_predict);
@@ -249,7 +257,13 @@ if 0
     err = X1_predict_normalized + X1;
 else
     err = cross(X1_predict_normalized, X1);
-    err = SkewSymMat(X1) * X1_predict_normalized;
+    if ~use_dist_2_plane
+        err = SkewSymMat(X1) * X1_predict_normalized;
+    else
+        bearing_start1 = X11(4:6);
+        bearing_end1 = X11(7:9);
+        err = [bearing_start1 bearing_end1]' * X1_predict_normalized;
+    end
 end
 
 %   predict = (t31 * X1' * R21' - R31 * X1 * t21') * SkewSymMat(X2) * SkewSymMat(t21) * R21 * X1;
@@ -259,7 +273,11 @@ end
 predict_norm = norm(X1_predict);
 predict_norm2 = predict_norm^2;
 d_predictN_d_predict = (predict_norm * eye(3) - X1_predict * X1_predict' / predict_norm) / (predict_norm2);
-d_err_d_predict = SkewSymMat(X1) * d_predictN_d_predict;
+if ~use_dist_2_plane
+    d_err_d_predict = SkewSymMat(X1) * d_predictN_d_predict;
+else
+    d_err_d_predict = [bearing_start1 bearing_end1]' * d_predictN_d_predict;
+end
 %
 % T21
 A1 = X2 * t31' * X3;
