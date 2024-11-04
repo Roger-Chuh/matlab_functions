@@ -45,6 +45,9 @@ xyz = xyz;
 
 patch_normal_gt = plane(1:3);
 
+fit_err = xyz_fit * plane;
+
+
 if add_noise
     if opt_idp_main && opt_normal
         idp_main_opt = idp_main_gt + 0.001;
