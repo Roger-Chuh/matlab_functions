@@ -183,8 +183,8 @@ for m = 1:size( bearing1, 1 )
             %             T_check_21(:,:,aa) = T21(:,aa) * T31(:,4)';
         end
         err0 = T_check2(:) - T_check(:);
-        err1 = SkewSymMat(bearing2(m,:)) * (bearing1(m, 1) * T_check(:,:,1) + bearing1(m, 2) * T_check(:,:,2) + bearing1(m, 3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
-        err2 =            epLineNormal2' * (uv1_normal(1)  * T_check(:,:,1) + uv1_normal(2)  * T_check(:,:,2) + uv1_normal(3)  * T_check(:,:,3)) * SkewSymMat(bearing3(m,:));
+        err1 = SkewSymMat(bearing2(m,:)) * (bearing1(m, 1) * T_check(:,:,1) + bearing1(m, 2) * T_check(:,:,2) + bearing1(m, 3) * T_check(:,:,3)) * SkewSymMat(bearing3(m,:)); %(15.7)
+        err2 =            epLineNormal2' * (uv1_normal(1)  * T_check(:,:,1) + uv1_normal(2)  * T_check(:,:,2) + uv1_normal(3)  * T_check(:,:,3)) * SkewSymMat(bearing3(m,:)); %(15.6)
         
         T_sum = T21(1:3,1:3) * uv1_normal * T31(1:3,4)' - T21(1:3,4) * (T31(1:3,1:3) * uv1_normal)';
         T_sum_transpose = T31(1:3,4) * (T21(1:3,1:3) * uv1_normal)' - (T31(1:3,1:3) * uv1_normal) * T21(1:3,4)';

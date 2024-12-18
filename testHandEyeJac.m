@@ -5,7 +5,22 @@ if 0
 end
 
 
-use_decoupled_left_SE3 = true;
+r = [0.1; 0.2; -0.3];
+
+R1 = JrInv(r);
+R2 = Jr(r);
+R2L = Jr(-r);
+% SkewSymMat(r) * R2
+
+dr = [0.1;0.2;-0.1];
+dt = [0.2;0.1;-0.2];
+dT1 = Exp(dr, dt);
+dT2 = [rodrigues(dr) Jr(-dr) * dt;0 0 0 1];
+
+R = rodrigues(rand(3, 1));
+R * rodrigues(dr) - rodrigues(dr) * R
+
+use_decoupled_left_SE3 = false;
 
 
 pose_num = 6;
@@ -61,6 +76,10 @@ for iter = 1 : max_iter
 end
 
 
+T1 = [rodrigues(rand(3, 1)) rand(3, 1);0 0 0 1];
+T2 = [rodrigues(rand(3, 1)) rand(3, 1);0 0 0 1];
+T3 = [rodrigues(rand(3, 1)) rand(3, 1);0 0 0 1];
+adj_diff = Adj(T1 * T2 * T3) - Adj(T1 * T2) * Adj(T3);
 
 
 end
@@ -97,6 +116,28 @@ J = zeros(6, 6);
 J(1:3,1:3) = JrInv(phi(1:3));
 J(4:6,4:6) = rodrigues(phi(1:3));
 end
+function J = Jr(phi)
+EPSILON = 1e-10;
+
+J = eye(3);
+
+phi_norm2 = sum(phi.^2);
+phi_hat = SkewSymMat(phi);
+phi_hat2 = phi_hat * phi_hat;
+
+if (phi_norm2 > EPSILON)
+    phi_norm = sqrt(phi_norm2);
+    phi_norm3 = phi_norm2 * phi_norm;
+    
+    J = J - phi_hat * (1 - cos(phi_norm)) / phi_norm2;
+    J = J + phi_hat2 * (phi_norm - sin(phi_norm)) / phi_norm3;
+else
+    % sin and cos Taylor expansion around 0
+    J = J - phi_hat / 2;
+    J = J + phi_hat2 / 6;
+end
+end
+
 function J = JrInv(phi)
 EPSILON = 1e-6;
 EPSILONSQRT = sqrt(EPSILON);
